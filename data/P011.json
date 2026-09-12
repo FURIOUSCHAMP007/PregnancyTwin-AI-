@@ -1,0 +1,78 @@
+{
+  "patient_id": "P011",
+  "trajectory_type": "growth_percentile_decline",
+  "visits": [
+    {
+      "gestational_age": 22,
+      "hc": 181,
+      "ac": 156,
+      "fl": 40,
+      "efw": 861,
+      "afi": 14.3,
+      "growth_percentile": 44
+    },
+    {
+      "gestational_age": 25,
+      "hc": 204,
+      "ac": 180,
+      "fl": 46,
+      "efw": 1118,
+      "afi": 14.3,
+      "growth_percentile": 36
+    },
+    {
+      "gestational_age": 28,
+      "hc": 225,
+      "ac": 202,
+      "fl": 52,
+      "efw": 1397,
+      "afi": 14.3,
+      "growth_percentile": 28
+    },
+    {
+      "gestational_age": 30,
+      "hc": 237,
+      "ac": 216,
+      "fl": 55,
+      "efw": 1584,
+      "afi": 14.3,
+      "growth_percentile": 20
+    },
+    {
+      "gestational_age": 32,
+      "hc": 251,
+      "ac": 229,
+      "fl": 58,
+      "efw": 1807,
+      "afi": 14.3,
+      "growth_percentile": 17
+    },
+    {
+      "gestational_age": 34,
+      "hc": 262,
+      "ac": 241,
+      "fl": 61,
+      "efw": 1978,
+      "afi": 14.3,
+      "growth_percentile": 6
+    },
+    {
+      "gestational_age": 38,
+      "hc": 284,
+      "ac": 267,
+      "fl": 67,
+      "efw": 2628,
+      "afi": 14.3,
+      "growth_percentile": 12
+    }
+  ],
+  "medications": [
+    {
+      "name": "Low-Dose Aspirin",
+      "dose": "150 mg daily",
+      "start_week": 12,
+      "end_week": 36,
+      "indication": "Placental insufficiency prophylaxis"
+    }
+  ]
+}

@@ -1,0 +1,60 @@
+{
+  "patient_id": "P015",
+  "trajectory_type": "rapid_growth_change",
+  "visits": [
+    {
+      "gestational_age": 20,
+      "hc": 164,
+      "ac": 140,
+      "fl": 37,
+      "efw": 757,
+      "afi": 10.5,
+      "growth_percentile": 68
+    },
+    {
+      "gestational_age": 22,
+      "hc": 181,
+      "ac": 155,
+      "fl": 41,
+      "efw": 874,
+      "afi": 10.5,
+      "growth_percentile": 48
+    },
+    {
+      "gestational_age": 25,
+      "hc": 204,
+      "ac": 179,
+      "fl": 46,
+      "efw": 1069,
+      "afi": 10.5,
+      "growth_percentile": 26
+    },
+    {
+      "gestational_age": 29,
+      "hc": 231,
+      "ac": 208,
+      "fl": 53,
+      "efw": 1600,
+      "afi": 10.5,
+      "growth_percentile": 41
+    },
+    {
+      "gestational_age": 32,
+      "hc": 250,
+      "ac": 228,
+      "fl": 58,
+      "efw": 2177,
+      "afi": 10.5,
+      "growth_percentile": 61
+    }
+  ],
+  "medications": [
+    {
+      "name": "Low-Dose Aspirin",
+      "dose": "150 mg daily",
+      "start_week": 12,
+      "end_week": 36,
+      "indication": "Placental insufficiency prophylaxis"
+    }
+  ]
+}

@@ -1,0 +1,49 @@
+{
+  "feature_count": 22,
+  "features": [
+    {
+      "name": "initial_gestational_age",
+      "description": "GA at first visit"
+    },
+    {
+      "name": "latest_gestational_age",
+      "description": "GA at most recent visit"
+    },
+    {
+      "name": "visit_count",
+      "description": "Total serial ultrasound visits"
+    },
+    {
+      "name": "average_visit_interval",
+      "description": "Mean days between visits"
+    },
+    {
+      "name": "latest_afi",
+      "description": "Most recent Amniotic Fluid Index"
+    },
+    {
+      "name": "afi_slope",
+      "description": "Linear rate of change in AFI"
+    },
+    {
+      "name": "latest_efw",
+      "description": "Most recent Estimated Fetal Weight"
+    },
+    {
+      "name": "efw_slope",
+      "description": "EFW growth trajectory rate"
+    },
+    {
+      "name": "latest_growth_percentile",
+      "description": "Hadlock growth percentile"
+    },
+    {
+      "name": "maternal_age",
+      "description": "Maternal age in years"
+    },
+    {
+      "name": "risk_profile",
+      "description": "Clinical risk categorization"
+    }
+  ]
+}

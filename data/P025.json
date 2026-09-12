@@ -1,0 +1,78 @@
+{
+  "patient_id": "P025",
+  "trajectory_type": "rapid_growth_change",
+  "visits": [
+    {
+      "gestational_age": 23,
+      "hc": 189,
+      "ac": 164,
+      "fl": 42,
+      "efw": 1116,
+      "afi": 13.3,
+      "growth_percentile": 86
+    },
+    {
+      "gestational_age": 26,
+      "hc": 210,
+      "ac": 186,
+      "fl": 48,
+      "efw": 1398,
+      "afi": 13.3,
+      "growth_percentile": 70
+    },
+    {
+      "gestational_age": 30,
+      "hc": 238,
+      "ac": 214,
+      "fl": 55,
+      "efw": 1781,
+      "afi": 13.3,
+      "growth_percentile": 48
+    },
+    {
+      "gestational_age": 32,
+      "hc": 250,
+      "ac": 228,
+      "fl": 58,
+      "efw": 2190,
+      "afi": 13.3,
+      "growth_percentile": 63
+    },
+    {
+      "gestational_age": 35,
+      "hc": 268,
+      "ac": 248,
+      "fl": 63,
+      "efw": 2972,
+      "afi": 13.3,
+      "growth_percentile": 90
+    },
+    {
+      "gestational_age": 37,
+      "hc": 279,
+      "ac": 260,
+      "fl": 65,
+      "efw": 3231,
+      "afi": 13.3,
+      "growth_percentile": 77
+    },
+    {
+      "gestational_age": 40,
+      "hc": 296,
+      "ac": 279,
+      "fl": 70,
+      "efw": 3540,
+      "afi": 13.3,
+      "growth_percentile": 54
+    }
+  ],
+  "medications": [
+    {
+      "name": "Prenatal Multivitamin",
+      "dose": "1 tab daily",
+      "start_week": 6,
+      "end_week": 40,
+      "indication": "Routine micronutrient support"
+    }
+  ]
+}

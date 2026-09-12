@@ -1,0 +1,67 @@
+{
+  "patient_id": "P016",
+  "trajectory_type": "fluid_recovery",
+  "visits": [
+    {
+      "gestational_age": 22,
+      "hc": 180,
+      "ac": 155,
+      "fl": 40,
+      "efw": 900,
+      "afi": 8.4,
+      "growth_percentile": 56
+    },
+    {
+      "gestational_age": 24,
+      "hc": 196,
+      "ac": 171,
+      "fl": 45,
+      "efw": 1100,
+      "afi": 9.1,
+      "growth_percentile": 56
+    },
+    {
+      "gestational_age": 27,
+      "hc": 218,
+      "ac": 194,
+      "fl": 50,
+      "efw": 1442,
+      "afi": 10.3,
+      "growth_percentile": 56
+    },
+    {
+      "gestational_age": 30,
+      "hc": 238,
+      "ac": 214,
+      "fl": 55,
+      "efw": 1838,
+      "afi": 10.8,
+      "growth_percentile": 56
+    },
+    {
+      "gestational_age": 32,
+      "hc": 251,
+      "ac": 229,
+      "fl": 58,
+      "efw": 2132,
+      "afi": 12.5,
+      "growth_percentile": 56
+    }
+  ],
+  "medications": [
+    {
+      "name": "Nifedipine ER",
+      "dose": "30 mg daily",
+      "start_week": 28,
+      "end_week": 34,
+      "indication": "Pre-eclampsia vascular stabilization"
+    },
+    {
+      "name": "Betamethasone",
+      "dose": "12 mg IM (2 doses)",
+      "start_week": 29,
+      "end_week": 30,
+      "indication": "Fetal lung maturation course"
+    }
+  ]
+}

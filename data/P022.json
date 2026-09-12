@@ -1,0 +1,78 @@
+{
+  "patient_id": "P022",
+  "trajectory_type": "growth_percentile_decline",
+  "visits": [
+    {
+      "gestational_age": 22,
+      "hc": 180,
+      "ac": 156,
+      "fl": 40,
+      "efw": 835,
+      "afi": 15,
+      "growth_percentile": 37
+    },
+    {
+      "gestational_age": 26,
+      "hc": 211,
+      "ac": 187,
+      "fl": 48,
+      "efw": 1183,
+      "afi": 15,
+      "growth_percentile": 29
+    },
+    {
+      "gestational_age": 28,
+      "hc": 224,
+      "ac": 202,
+      "fl": 51,
+      "efw": 1377,
+      "afi": 15,
+      "growth_percentile": 24
+    },
+    {
+      "gestational_age": 32,
+      "hc": 250,
+      "ac": 229,
+      "fl": 59,
+      "efw": 1752,
+      "afi": 15,
+      "growth_percentile": 10
+    },
+    {
+      "gestational_age": 35,
+      "hc": 269,
+      "ac": 247,
+      "fl": 63,
+      "efw": 2113,
+      "afi": 15,
+      "growth_percentile": 6
+    },
+    {
+      "gestational_age": 37,
+      "hc": 279,
+      "ac": 261,
+      "fl": 66,
+      "efw": 2417,
+      "afi": 15,
+      "growth_percentile": 8
+    },
+    {
+      "gestational_age": 40,
+      "hc": 295,
+      "ac": 278,
+      "fl": 70,
+      "efw": 2869,
+      "afi": 15,
+      "growth_percentile": 6
+    }
+  ],
+  "medications": [
+    {
+      "name": "Labetalol",
+      "dose": "100 mg BID",
+      "start_week": 24,
+      "end_week": 34,
+      "indication": "Gestational hypertension management"
+    }
+  ]
+}

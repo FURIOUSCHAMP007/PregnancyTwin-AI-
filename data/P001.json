@@ -1,0 +1,60 @@
+{
+  "patient_id": "P001",
+  "trajectory_type": "stable_trajectory",
+  "visits": [
+    {
+      "gestational_age": 20,
+      "hc": 175,
+      "ac": 150,
+      "fl": 34,
+      "efw": 350,
+      "afi": 14.5,
+      "growth_percentile": 52
+    },
+    {
+      "gestational_age": 24,
+      "hc": 220,
+      "ac": 195,
+      "fl": 44,
+      "efw": 680,
+      "afi": 14.2,
+      "growth_percentile": 52
+    },
+    {
+      "gestational_age": 28,
+      "hc": 260,
+      "ac": 240,
+      "fl": 54,
+      "efw": 1200,
+      "afi": 13.8,
+      "growth_percentile": 51
+    },
+    {
+      "gestational_age": 32,
+      "hc": 298,
+      "ac": 282,
+      "fl": 63,
+      "efw": 1900,
+      "afi": 13.2,
+      "growth_percentile": 50
+    },
+    {
+      "gestational_age": 36,
+      "hc": 326,
+      "ac": 324,
+      "fl": 71,
+      "efw": 2800,
+      "afi": 12.6,
+      "growth_percentile": 49
+    }
+  ],
+  "medications": [
+    {
+      "name": "Prenatal Multivitamin",
+      "dose": "1 tablet daily",
+      "start_week": 6,
+      "end_week": 40,
+      "indication": "Routine antenatal micronutrient supplementation"
+    }
+  ]
+}

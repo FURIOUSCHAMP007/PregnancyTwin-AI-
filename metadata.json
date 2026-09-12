@@ -1,0 +1,6 @@
+{
+  "name": "PregnancyTwin AI",
+  "description": "AI-powered longitudinal pregnancy monitoring and clinical decision-support platform with Pregnancy Digital Twin and Trajectory Intelligence",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,1 @@
+{"model_name":"XGBoostRegressor","target_variable":"delivery_gestational_age","status":"trained","train_samples":70,"val_samples":15,"test_samples":15,"feature_count":22,"validation":{"mae":1.137,"rmse":1.279,"r2":-0.025},"test":{"mae":0.887,"rmse":0.995,"r2":0.022},"timestamp":"2026-09-12T10:07:12.269Z"}

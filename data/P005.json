@@ -1,0 +1,69 @@
+{
+  "patient_id": "P005",
+  "trajectory_type": "stable_low_percentile",
+  "visits": [
+    {
+      "gestational_age": 22,
+      "hc": 181,
+      "ac": 155,
+      "fl": 41,
+      "efw": 750,
+      "afi": 12.6,
+      "growth_percentile": 13
+    },
+    {
+      "gestational_age": 26,
+      "hc": 211,
+      "ac": 187,
+      "fl": 48,
+      "efw": 1122,
+      "afi": 12.6,
+      "growth_percentile": 17
+    },
+    {
+      "gestational_age": 30,
+      "hc": 237,
+      "ac": 215,
+      "fl": 55,
+      "efw": 1546,
+      "afi": 12.6,
+      "growth_percentile": 15
+    },
+    {
+      "gestational_age": 34,
+      "hc": 262,
+      "ac": 241,
+      "fl": 62,
+      "efw": 2039,
+      "afi": 12.6,
+      "growth_percentile": 13
+    },
+    {
+      "gestational_age": 38,
+      "hc": 286,
+      "ac": 267,
+      "fl": 67,
+      "efw": 2672,
+      "afi": 12.6,
+      "growth_percentile": 16
+    },
+    {
+      "gestational_age": 40,
+      "hc": 295,
+      "ac": 279,
+      "fl": 70,
+      "efw": 3016,
+      "afi": 12.6,
+      "growth_percentile": 16
+    }
+  ],
+  "medications": [
+    {
+      "name": "Prenatal Multivitamin",
+      "dose": "1 tab daily",
+      "start_week": 6,
+      "end_week": 40,
+      "indication": "Routine micronutrient support"
+    }
+  ]
+}

@@ -1,0 +1,51 @@
+{
+  "patient_id": "P029",
+  "trajectory_type": "mixed_fluid_growth_change",
+  "visits": [
+    {
+      "gestational_age": 21,
+      "hc": 173,
+      "ac": 147,
+      "fl": 39,
+      "efw": 887,
+      "afi": 15.8,
+      "growth_percentile": 80
+    },
+    {
+      "gestational_age": 23,
+      "hc": 188,
+      "ac": 163,
+      "fl": 42,
+      "efw": 1101,
+      "afi": 13.4,
+      "growth_percentile": 82
+    },
+    {
+      "gestational_age": 26,
+      "hc": 210,
+      "ac": 186,
+      "fl": 48,
+      "efw": 1399,
+      "afi": 11.6,
+      "growth_percentile": 70
+    },
+    {
+      "gestational_age": 30,
+      "hc": 239,
+      "ac": 215,
+      "fl": 55,
+      "efw": 1857,
+      "afi": 12.7,
+      "growth_percentile": 58
+    }
+  ],
+  "medications": [
+    {
+      "name": "Prenatal Multivitamin",
+      "dose": "1 tab daily",
+      "start_week": 6,
+      "end_week": 40,
+      "indication": "Routine micronutrient support"
+    }
+  ]
+}

@@ -1,0 +1,60 @@
+{
+  "patient_id": "P002",
+  "trajectory_type": "gradual_fluid_trajectory_change",
+  "visits": [
+    {
+      "gestational_age": 20,
+      "hc": 174,
+      "ac": 149,
+      "fl": 33,
+      "efw": 345,
+      "afi": 14.8,
+      "growth_percentile": 51
+    },
+    {
+      "gestational_age": 24,
+      "hc": 221,
+      "ac": 194,
+      "fl": 43,
+      "efw": 670,
+      "afi": 14.0,
+      "growth_percentile": 50
+    },
+    {
+      "gestational_age": 28,
+      "hc": 258,
+      "ac": 236,
+      "fl": 52,
+      "efw": 1150,
+      "afi": 10.8,
+      "growth_percentile": 47
+    },
+    {
+      "gestational_age": 32,
+      "hc": 294,
+      "ac": 275,
+      "fl": 61,
+      "efw": 1780,
+      "afi": 7.4,
+      "growth_percentile": 44
+    },
+    {
+      "gestational_age": 35,
+      "hc": 316,
+      "ac": 302,
+      "fl": 67,
+      "efw": 2360,
+      "afi": 4.6,
+      "growth_percentile": 42
+    }
+  ],
+  "medications": [
+    {
+      "name": "Labetalol",
+      "dose": "100 mg BID",
+      "start_week": 26,
+      "end_week": 36,
+      "indication": "Gestational hypertension management"
+    }
+  ]
+}
