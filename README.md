@@ -1,175 +1,172 @@
-# 🤰 PregnancyTwin AI
-### AI-Powered Longitudinal Pregnancy Monitoring & Clinical Decision-Support Platform
+# 🤰 PregnancyTwin AI — Clinical Decision-Support & Perinatal Forecasting Platform
 
-**PregnancyTwin AI** is a state-of-the-art clinical decision-support and longitudinal fetal monitoring platform. By modeling a patient’s gestational progression as a **Pregnancy Digital Twin**, the system integrates continuous biomechanical tracking, robust mathematical filtering, computer-vision-based ultrasound report parsing, machine learning classification, and reinforcement learning scheduling to predict pathological trajectory drops and coordinate clinical action before adverse events occur.
-
----
-
-## 🗺️ Architectural Topology & Core Engine Overview
-
-```
-                      +-----------------------------------+
-                      |   Ultrasound Scan / PDF Report    |
-                      +-----------------+-----------------+
-                                        |
-                                        v (Gemini Vision OCR API)
-                      +-----------------+-----------------+
-                      |     Structured Metric Extraction    |
-                      +-----------------+-----------------+
-                                        |
-                                        v
-+------------------+  +-----------------+-----------------+  +----------------------+
-|  Live Sonographer|  |  Longitudinal Serial Scans Log   |  | Maternal Physiology  |
-|  Manual Overrides|  |  (Gestational Weeks 20 to 40)     |  | Cohort Demographics  |
-+--------+---------+  +-----------------+-----------------+  +----------+-----------+
-         |                              |                               |
-         +------------------------------+-------------------------------+
-                                        |
-                                        v
-                      +-----------------+-----------------+
-                      |  2D Kalman Filter Trajectory      |
-                      |  Stabilizer & Smoothing Engine    |
-                      +-----------------+-----------------+
-                                        |
-                                        |--> Biological Monotonicity constraints (non-shrinking)
-                                        |--> Anatomical BPD/HC/FL proportion validation
-                                        v
-                      +-----------------+-----------------+
-                      |  Trajectory & Risk Intelligence   |
-                      |  Engine (Biometrical Velocity)   |
-                      +--------+-----------------+--------+
-                               |                 |
-         +---------------------+                 +--------------------+
-         |                                                            |
-         v                                                            v
-+--------+-------------------------+               +------------------+------------------+
-| Fetal Symmetry Analysis (HC/AC)  |               |  Dynamic Risk Alert Score (0-100)  |
-| - Symmetric vs Asymmetric FGR    |               |  - Predictive Amniotic Fluid Taper |
-| - Recharts Trend Visualization   |               |  - RLCF Adaptive Intervention      |
-+----------------------------------+               +-------------------------------------+
-```
+PregnancyTwin AI is a cutting-edge clinical decision-support and longitudinal fetal monitoring system. By modeling each twin pregnancy as a dynamic, biometric **Digital Twin**, the platform enables obstetricians and maternal-fetal medicine (MFM) specialists to track fetal growth, stabilize noisy ultrasound biometry, parse diagnostic documents with AI, predict delivery timelines, and optimize surveillance protocols in real-time.
 
 ---
 
-## 🚀 Key Modules & Functional Architecture
+## 📖 1. Executive Summary: What is this Project?
 
-### 1. The Pregnancy Digital Twin State Machine
-The core progression engine tracks maternal and fetal biometric trajectories over serial ultrasound visits between **Weeks 20 and 40**. By analyzing multi-visit timelines, it calculates first and second-order derivatives:
-* **$\Delta$ AFI / $\Delta$ t ($cm/week$)**: Longitudinal amniotic fluid velocity.
-* **$d^2\text{AFI}/dt^2$ ($cm/week^2$)**: Acceleration/deceleration coefficients mapping critical fluid loss.
-* **$\Delta$ Percentile / $\Delta$ t ($percentile/week$)**: Rate of fetal weight deviation relative to standard Hadlock population curves.
+In twin pregnancies, clinical management is exceptionally complex due to risks like **Fetal Growth Restriction (FGR)**, placental insufficiency, and amniotic fluid depletion (Oligohydramnios). Standard practice relies on static, periodic ultrasound checks, which are highly prone to inter-operator measurement errors and fail to model trends.
 
-### 2. Dual-State 2D Kalman Filter Stabilizer (`src/utils/kalmanFilter.ts`)
-Ultrasonic measurements are prone to high inter-operator variance and probe angles. The platform employs an advanced **2D Kalman Filter** representing both physical size and development velocity:
+**PregnancyTwin AI solves this by introducing a continuous digital twin state-space model.** It fuses multiple advanced engines to provide real-time risk classification and predictive scheduling:
 
-$$\mathbf{x}_k = \begin{bmatrix} s_k \\ v_k \end{bmatrix}$$
+1. **Document Intelligence**: Clinicians upload images or PDFs of ultrasound screens. The backend runs a **Gemini Vision OCR Parser** to instantly extract structured biometrics and append them to the patient’s longitudinal timeline.
+2. **Measurement Stabilization**: To eliminate inter-operator noise, a **Dual-State 2D Kalman Filter** smooths fetal bone and cranial growth trends while enforcing strict biological growth constraints.
+3. **Delivery Prognosis**: A gradient-boosted **XGBoost Regression Model** analyzes multi-scan velocities ($\Delta$ AFI, fetal growth percentile slopes, weight velocities) to forecast the safest gestational age window for planned induction or delivery.
+4. **Interactive Action Loop**: An interactive **Reinforcement Learning from Clinician Feedback (RLCF) Scheduler** dynamically recommends optimal surveillance frequencies, adapting Q-values on the fly whenever an obstetrician overrides or approves its action suggestions.
 
-Where $s_k$ is the estimated true anatomical size, and $v_k$ is the velocity of development per week.
+---
 
-#### Mathematical Steps:
-1. **Prediction Phase**:
-   $$\hat{\mathbf{x}}_{k|k-1} = \mathbf{F} \hat{\mathbf{x}}_{k-1|k-1}$$
+## 🗺️ 2. High-Level Architectural Blueprint
+
+Below is the end-to-end data flow mapping how a patient's raw ultrasound scan is processed, analyzed, and visualized:
+
+```
+  [ ULTRASOUND SCAN IMAGE / PDF ]
+                 │
+                 ▼ (Gemini Multi-Modal API)
+  [ structured-extractor.ts / API Route ] ──► Parses: BPD, HC, AC, FL, AFI, SDP
+                 │
+                 ▼
+  [ Dual-State 2D Kalman Filter ] ──────────► Smooths biometry & enforces biological
+                 │                            growth monotonicity (prevents shrinkage)
+                 ▼
+  ┌────────────────────────────────────────────────────────────────────────┐
+  │                   PREGNANCYTWIN INTELLIGENCE SUITE                    │
+  ├────────────────────────────────────────┬───────────────────────────────┤
+  │                                        │                               │
+  ▼                                        ▼                               ▼
+[ XGBoost Regressor ]            [ Clinical Checklist ]          [ RLCF Adaptive Agent ]
+Predicts delivery weeks           ACOG Practice Bulletin         Calculates Softmax
+& confidence interval             No. 227 Compliance Auditor     surveillance schedule
+  │                                        │                               │
+  └────────────────────────┬───────────────┴───────────────────────────────┘
+                           ▼
+               [ Clinician Dashboard UI ]
+         ├── Interactive Scenario Sandbox Modeler
+         ├── Umbilical & Cerebral Hemodynamic Chart
+         ├── Hadlock Fetal Population Corridors
+         └── Audit-Logged Intervention Ledger
+```
+
+---
+
+## 📂 3. Directory Structure & File Map
+
+To navigate this project easily, refer to the directory file tree map below which highlights where specific business logic resides:
+
+```
+.
+├── 📄 server.ts                   # Core Express backend (Proxy endpoints, Gemini Vision OCR, RLCF Q-Learning server)
+├── 📄 package.json                # Project script registry, backend TSX runner, and compiler configs
+├── 📄 vite.config.ts              # Vite bundling engine with reverse-proxy configurations
+├── 📂 data/                       # Local directory containing synthetic longitudinal clinical histories
+│   ├── pat-001.json               # Patient 1 record: Uncomplicated Twin gestation (Term Target)
+│   ├── pat-002.json               # Patient 2 record: Early-onset Severe FGR (High Risk)
+│   └── pat-003.json               # Patient 3 record: Late-onset Oligohydramnios (Marginal Risk)
+├── 📂 models/                     # Trained ML model assets and features metadata
+│   ├── feature_metadata.json      # Metadata schema expected by the XGBoost regressor
+│   ├── feature_importance.csv     # Feature weight importances calculated during model training
+│   └── delivery_model_metrics.json# Model diagnostic performance statistics (MAE, RMSE, R²)
+├── 📂 public/                     # Static icons, vector graphics, and visual layouts
+└── 📂 src/                        # Front-end React applications directory
+    ├── 📄 App.tsx                 # Core layout builder (handles patient selection, navigation state, and view rendering)
+    ├── 📄 main.tsx                # Client bootstrapping entry point
+    ├── 📄 types.ts                # TypeScript types, schemas, and clinical interface definitions
+    ├── 📄 index.css               # Global Tailwind stylesheet containing theme settings
+    ├── 📂 utils/                  # Biomechanical and mathematical utilities
+    │   └── kalmanFilter.ts        # Kalman filter implementation with physical growth constraints
+    └── 📂 components/             # Reusable UX modules and tabs
+        ├── 📂 twin/               # Specialist Perinatal Diagnostic Sub-Tabs
+        │   ├── TwinDeliveryPredictionTab.tsx  # XGBoost Sandbox, RLCF Scheduler, and Model Performance Metrics
+        │   ├── TwinGuidelinesTab.tsx          # ACOG Practice Bulletin No. 227 Compliance Checker
+        │   └── TwinHemodynamicsTab.tsx        # UA, MCA Doppler curves, and Brain-Sparing index
+        ├── PatientList.tsx        # Direct clinical patient selector and risk score indicators
+        ├── AppSidebar.tsx         # Main system sidebar navigation
+        ├── GrowthChartVisualization.tsx # Fetal weight trajectory relative to Hadlock percentile grids
+        ├── AiUltrasoundScreenOcrModal.tsx # Upload modal for drag-and-drop report parsing
+        ├── LongitudinalDeliveryForecastPanel.tsx # Linear trend projections & prognosis metrics
+        ├── AdminAuditView.tsx     # Session activity ledger for medical compliance tracking
+        └── PlatformWalkthrough.tsx # Interactive tour system explaining UI components
+```
+
+---
+
+## 🔬 4. Technological Deep-Dive
+
+### 1. The Dual-State 2D Kalman Filter (`src/utils/kalmanFilter.ts`)
+Fetal biometry measurements (Biparietal Diameter `BPD`, Head Circumference `HC`, Abdominal Circumference `AC`, Femur Length `FL`) fluctuate due to maternal tissue density, baby positioning, and sonographer experience. 
+
+Rather than plotting raw, erratic inputs, the digital twin models the underlying biological state as a vector:
+$$\mathbf{x}_k = \begin{bmatrix} \text{Size}_k \\ \text{Growth Velocity}_k \end{bmatrix}$$
+
+#### The Predict-Update Equations:
+1. **Prediction**: The model projects the fetus's biometric size and velocity to the current gestational week based on the time step ($\Delta t$ in weeks):
+   $$\hat{\mathbf{x}}_{k|k-1} = \begin{bmatrix} 1 & \Delta t \\ 0 & 1 \end{bmatrix} \hat{\mathbf{x}}_{k-1|k-1}$$
    $$\mathbf{P}_{k|k-1} = \mathbf{F} \mathbf{P}_{k-1|k-1} \mathbf{F}^T + \mathbf{Q}$$
-   *Using step size $\Delta t$ defined dynamically by the calendar duration between consecutive visits.*
 
-2. **Measurement Update**:
-   $$\tilde{\mathbf{y}}_k = \mathbf{z}_k - \mathbf{H} \hat{\mathbf{x}}_{k|k-1}$$
-   $$\mathbf{S}_k = \mathbf{H} \mathbf{P}_{k|k-1} \mathbf{H}^T + R$$
-   $$\mathbf{K}_k = \mathbf{P}_{k|k-1} \mathbf{H}^T \mathbf{S}_k^{-1}$$
-   $$\hat{\mathbf{x}}_{k|k} = \hat{\mathbf{x}}_{k|k-1} + \mathbf{K}_k \tilde{\mathbf{y}}_k$$
-   $$\mathbf{P}_{k|k} = (\mathbf{I} - \mathbf{K}_k \mathbf{H}) \mathbf{P}_{k|k-1}$$
+2. **Measurement Update**: Fuses the new ultrasound measurement with the predicted state, weighting it by the sensor noise covariance ($R$):
+   $$\mathbf{K}_k = \mathbf{P}_{k|k-1} \mathbf{H}^T \left(\mathbf{H} \mathbf{P}_{k|k-1} \mathbf{H}^T + R\right)^{-1}$$
+   $$\hat{\mathbf{x}}_{k|k} = \hat{\mathbf{x}}_{k|k-1} + \mathbf{K}_k \left(\mathbf{z}_k - \mathbf{H} \hat{\mathbf{x}}_{k|k-1}\right)$$
 
-#### Biological Constraints Engine:
-Traditional state-space filters are unconstrained and can output mathematically valid but biologically impossible states. This module applies projection-based corrections:
-* **Physical Monotonicity constraint**: $s_{k} \ge s_{k-1}$. A growing fetus's structural bone and soft tissue dimensions ($HC$, $AC$, $BPD$, $FL$, and $EFW$) cannot shrink. The Kalman estimate is clipped to prevent non-monotonic decay from measurement noise.
-* **Anatomical Bounds Checking**: Ensures biparietal cranial diameter ($BPD$) maintains strict biological proportion limits ($BPD \le 0.28 \times HC$).
-
-### 3. Reinforcement Learning from Clinician Feedback (RLCF) Adaptive Scheduler
-To help bridge the gap between static guidelines and active clinical practice, we implemented an interactive **RLCF Adaptive Scheduling Agent** that learns directly from expert overrides:
-* **MDP State Space**: Modeled continuous-to-discrete state vectors along three primary clinical axes:
-  * **Gestational Age Category** (*Extreme Preterm, Late Preterm, Term*)
-  * **Amniotic Fluid Index (AFI) Status** (*Oligohydramnios, Marginal, Normal*)
-  * **Fetal Growth Percentile Tier** (*Severe Growth Restriction, Decelerating, Adequate*)
-* **Intervention Actions**: Maps 5 standard medical surveillance intensities:
-  1. `Routine Monitoring` (Ultrasound in 3–4 weeks)
-  2. `Close Surveillance` (Ultrasound in 1–2 weeks)
-  3. `Intense Surveillance` (Ultrasound in 3–7 days with Doppler)
-  4. `Inpatient Admission & Corticosteroids` (Hospitalization & active surveillance)
-  5. `Indicated Preterm Delivery` (Planned delivery transition)
-* **Q-Learning Engine with Softmax Probability**: Action recommendations are generated using a **Softmax Distribution Rule** ($\tau = 2.0$) over learned Q-values:
-  $$P(a_i) = \frac{e^{Q(s, a_i)/\tau}}{\sum_j e^{Q(s, a_j)/\tau}}$$
-* **Direct Feedback Loop**: When clinicians accept or override recommendations, a **Temporal Difference** update adjusts the Q-table at a learning rate ($\alpha = 0.3$), giving the scheduler immediate, clinician-driven adaptive intelligence.
-
-### 4. XGBoost Scenario Sandbox Modeler
-Clinicians can test hypothetical biometrics in real-time to witness how the gradient-boosted regressor predicts delivery windows. 
-* **Quick-Load Presets**: Instantly simulate edge-cases such as:
-  * *Early Severe FGR* (28w gestation, growth percentile 2)
-  * *Late Oligohydramnios* (35.5w, AFI slope -0.9 cm/wk)
-  * *Advanced Maternal Age & FGR* (32.5w, growth percentile 8, 41-year-old mother)
-  * *Physiological Term Target* (37.0w, stable growth corridor)
-
-### 5. OCR Clinical Report Parser (Server-Side Gemini Vision)
-Using the multi-modal intelligence of `gemini-2.5-flash` via the server-side API, clinicians can upload snapshots of ultrasound screens or paper reports. The engine automatically extracts:
-* Maternal demographics (Age, Gravidity, Parity, LMP).
-* Complete fetus biometrics ($BPD, HC, AC, FL$, Fetal Heart Rate, Presentation, and Placenta location).
-* Amniotic fluid volumes ($AFI$ and Single Deepest Pocket $SDP$).
-* Returns structured JSON which instantly binds to the patient's longitudinal twin timeline.
-
-### 6. High-Performance Server-Side Cache Layer
-To support high-throughput analytical query resolutions, we implemented an **In-Memory Data Caching & Invalidation Layer** in `server.ts`:
-* Parses large datasets (e.g., the 2,500-record longitudinal dataset `2.5kdata_enhanced.json`) and caches JSON outputs in physical RAM on first run.
-* Drastically decreases subsequent request resolutions from **~200ms** (CPU file-system locks) to **<1ms** instant-memory responses.
-* Auto-invalidates the cache upon retraining events to ensure zero-stale-data delivery.
+#### Strict Biological Constraints:
+* **Growth Monotonicity Constraint**: A fetus’s physical skeletal and head structure cannot shrink over time. If the raw ultrasound measurement results in a Kalman update where $\text{Size}_k < \text{Size}_{k-1}$, the filter applies a projection constraint:
+  $$\hat{\mathbf{x}}_{k|k}[\text{Size}] = \max\left(\hat{\mathbf{x}}_{k|k}[\text{Size}],\ \hat{\mathbf{x}}_{k-1|k-1}[\text{Size}]\right)$$
+* **Anatomical Proportion Guardrails**: Ensures that cranial biometrics conform to biological laws (e.g., $BPD \le 0.28 \times HC$), discarding extreme outliers.
 
 ---
 
-## 🛠️ Technology Stack & Dependencies
+### 2. Reinforcement Learning from Clinician Feedback (RLCF)
+The system leverages an active, full-stack **Markov Decision Process (MDP)** to optimize clinical surveillance schedules based on patient states:
 
-* **Frontend**: React 18, Vite, TypeScript, Tailwind CSS
-* **Visualizations**: Recharts (for fluid and growth population corridors, HC/AC timelines, cumulative RLCF reward curves), Lucide React (vector iconography), Framer Motion (for transitions)
-* **Backend**: Node.js, Express (custom server supporting Vite SPA fallback)
-* **AI Orchestration**: Server-side `@google/genai` Integration with Gemini API
+* **State Matrix (S)**: Evaluates Gestational Age, Amniotic Fluid Index (AFI), and Growth Percentiles.
+* **Action Matrix (A)**: Ranges from Standard Outpatient Checkups (`ROUTINE`) to Hospitalization (`INPATIENT`) or Urgent Delivery (`INDICATED_DELIVERY`).
+* **The Q-Learning Feedback Loop**:
+  * Action probabilities are calculated on the server using a **Softmax Exploration Rule**:
+    $$P(a_i | s) = \frac{e^{Q(s, a_i)/\tau}}{\sum_j e^{Q(s, a_j)/\tau}}$$
+  * When a clinician clicks **"Approve"**, the agent receives a positive reward ($R = +1.5$) reinforcing the recommended schedule.
+  * When a clinician overrides the agent with a custom schedule (e.g. demanding hospital admission for a marginal patient), the agent receives a penalty ($R = -2.0$) on its bad recommendation and a reward reinforcement on the selected override:
+    $$Q(s, a) \leftarrow Q(s, a) + \alpha \left[ R + \gamma \max_{a'} Q(s', a') - Q(s, a) \right]$$
+    *Where learning rate $\alpha = 0.3$ and discount factor $\gamma = 0.9$ ensures rapid local alignment.*
 
 ---
 
-## ⚙️ Local Development & Deployment
+### 3. Multi-Modal OCR Scan Engine
+Through the Gemini Vision API, the platform converts unstructured clinical artifacts into a standardized electronic health timeline. When a report is uploaded, the server instructs Gemini to act as a precision medical extractor, returning structural JSON that binds:
+* **Fetal Biometry**: Standardized metrics ($BPD, HC, AC, FL$) mapped against gestation.
+* **Placental Grading & Location**: Anterior, Posterior, Fundal, or Previa.
+* **Maternal Demographics**: Standardizing patient identifiers for cross-reference.
 
-### 1. Prerequisites
-Ensure you have **Node.js 18+** installed.
+---
 
-### 2. Environment Variables Configuration
-Configure a `.env` file at the root of the project using the structure in `.env.example`:
-```env
-GEMINI_API_KEY=your_gemini_api_key_here
-```
-*(Keep this key secure. The custom Express backend acts as an API proxy, meaning no credentials are ever exposed in the user's browser).*
+## 🚀 5. Getting Started
 
-### 3. Installation
-Install all package dependencies:
+### 1. Installation
+Install project dependencies:
 ```bash
 npm install
 ```
 
-### 4. Running the Development Server
-Launch the full-stack server (Express routing + Vite dev middleware running together on port 3000):
+### 2. Configuration
+Create a `.env` file in the root folder:
+```env
+GEMINI_API_KEY=your_gemini_api_key_here
+```
+
+### 3. Start Development Server
+Launches the custom Express server + Vite middleware concurrently on port `3000`:
 ```bash
 npm run dev
 ```
-Open [http://localhost:3000](http://localhost:3000) in your web browser.
 
-### 5. Building for Production
-Bundle the client assets and compile the server-side controller using the single production build script:
+### 4. Build & Start Production Server
+Bundle the assets and build the consolidated CommonJS server output:
 ```bash
 npm run build
-```
-This builds static assets into `/dist` and bundles the Express server into `dist/server.cjs` using `esbuild`.
-
-To start the production server:
-```bash
 npm start
 ```
 
 ---
 
 ## 🛡️ Clinical Disclaimer
-This software is designed as a research prototype and clinical decision-support tool. It is not an autonomous diagnostic platform, nor does it replace the clinical expertise, diagnostic judgment, or ultrasound caliper verification of a licensed Obstetrician or Maternal-Fetal Medicine (MFM) specialist.
+This system is an advanced research and decision-support prototype. It is designed to assist Maternal-Fetal Medicine (MFM) specialists by synthesizing multi-dimensional clinical data, but **must never be used as an autonomous diagnostic platform** or substitute for professional human evaluation and board-certified medical judgment.
