@@ -528,6 +528,67 @@ export const TwinDeliveryPredictionTab: React.FC<TwinDeliveryPredictionTabProps>
           {/* Controls */}
           <div className="space-y-4 lg:col-span-2">
             
+            {/* Clinical Pathological Presets */}
+            <div className="bg-slate-950/60 border border-slate-800/80 rounded-lg p-3">
+              <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider block mb-2">
+                Quick-Load Pathological Scenarios:
+              </span>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => {
+                    setSandboxLatestGa(28.0);
+                    setSandboxRisk('High Risk');
+                    setSandboxAfiSlope(-0.5);
+                    setSandboxPercentile(2);
+                    setSandboxEfwSlope(70);
+                    setSandboxAge(32);
+                  }}
+                  className="px-2.5 py-1 text-[10px] font-bold rounded bg-rose-950/50 border border-rose-900/60 text-rose-300 hover:bg-rose-900/40 transition-all"
+                >
+                  Early Severe FGR
+                </button>
+                <button
+                  onClick={() => {
+                    setSandboxLatestGa(35.5);
+                    setSandboxRisk('High Risk');
+                    setSandboxAfiSlope(-0.9);
+                    setSandboxPercentile(45);
+                    setSandboxEfwSlope(160);
+                    setSandboxAge(29);
+                  }}
+                  className="px-2.5 py-1 text-[10px] font-bold rounded bg-amber-950/50 border border-amber-900/60 text-amber-300 hover:bg-amber-900/40 transition-all"
+                >
+                  Late Oligohydramnios
+                </button>
+                <button
+                  onClick={() => {
+                    setSandboxLatestGa(32.5);
+                    setSandboxRisk('High Risk');
+                    setSandboxAfiSlope(-0.25);
+                    setSandboxPercentile(8);
+                    setSandboxEfwSlope(95);
+                    setSandboxAge(41);
+                  }}
+                  className="px-2.5 py-1 text-[10px] font-bold rounded bg-orange-950/50 border border-orange-900/60 text-orange-300 hover:bg-orange-900/40 transition-all"
+                >
+                  Advanced Age & FGR
+                </button>
+                <button
+                  onClick={() => {
+                    setSandboxLatestGa(37.0);
+                    setSandboxRisk('Low Risk');
+                    setSandboxAfiSlope(0.05);
+                    setSandboxPercentile(55);
+                    setSandboxEfwSlope(185);
+                    setSandboxAge(27);
+                  }}
+                  className="px-2.5 py-1 text-[10px] font-bold rounded bg-emerald-950/50 border border-emerald-900/60 text-emerald-300 hover:bg-emerald-900/40 transition-all"
+                >
+                  Physiological Term Target
+                </button>
+              </div>
+            </div>
+
             {/* Grid of Sliders */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               

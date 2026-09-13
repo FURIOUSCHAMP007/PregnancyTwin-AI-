@@ -28,6 +28,32 @@ import {
 import { Patient, VisitMeasurement, AuditLog, User, TrajectoryCategory, RiskLevel, MedicationExposure } from './src/types';
 import fs from 'fs';
 
+// ============================================================
+// HIGH-PERFORMANCE IN-MEMORY DATA CACHE (OPTIMIZATION)
+// ============================================================
+const jsonCache: Record<string, any> = {};
+
+const getCachedJson = (filePath: string): any => {
+  if (jsonCache[filePath]) {
+    return jsonCache[filePath];
+  }
+  if (!fs.existsSync(filePath)) {
+    return null;
+  }
+  try {
+    const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    jsonCache[filePath] = data;
+    return data;
+  } catch (err) {
+    console.error(`[CACHE ERROR] Failed parsing JSON at ${filePath}:`, err);
+    return null;
+  }
+};
+
+const invalidateJsonCache = (filePath: string) => {
+  delete jsonCache[filePath];
+};
+
 // Load SIH Longitudinal Synthetic Cohort from pregnancy_twin_100_unique_patients.json
 let syntheticPatientsData: any[] = [];
 try {
@@ -2233,7 +2259,8 @@ Clinical Facts:
       const files = fs.readdirSync(dataDir).filter(f => f.endsWith('.json'));
       const patients = files.map(f => {
         try {
-          const content = JSON.parse(fs.readFileSync(path.join(dataDir, f), 'utf8'));
+          const content = getCachedJson(path.join(dataDir, f));
+          if (!content) return null;
           return {
             patient_id: content.patient_id,
             trajectory_type: content.trajectory_type,
@@ -2257,10 +2284,10 @@ Clinical Facts:
     try {
       const patientId = req.params.patientId;
       const filePath = path.join(process.cwd(), 'data', `${patientId}.json`);
-      if (!fs.existsSync(filePath)) {
+      const patientData = getCachedJson(filePath);
+      if (!patientData) {
         return res.status(404).json({ success: false, message: `Patient file ${patientId}.json not found in /data` });
       }
-      const patientData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
       return res.json(patientData);
     } catch (err: any) {
       return res.status(500).json({ success: false, error: err.message });
@@ -2272,11 +2299,9 @@ Clinical Facts:
     try {
       const patientId = req.params.patientId;
       const filePath = path.join(process.cwd(), 'data', `${patientId}.json`);
-      let patientData: any = null;
+      let patientData: any = getCachedJson(filePath);
 
-      if (fs.existsSync(filePath)) {
-        patientData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-      } else {
+      if (!patientData) {
         const found = syntheticPatientsData.find(p => p.patient_id === patientId);
         if (found) {
           patientData = {
@@ -2329,11 +2354,7 @@ Clinical Facts:
     try {
       const patientId = req.params.patientId;
       const filePath = path.join(process.cwd(), 'data', `${patientId}.json`);
-      let patientData: any = null;
-
-      if (fs.existsSync(filePath)) {
-        patientData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-      }
+      const patientData = getCachedJson(filePath);
 
       if (!patientData) {
         return res.status(404).json({ success: false, message: `Patient ${patientId} not found` });
@@ -2372,8 +2393,8 @@ Clinical Facts:
       }
       let count = 0;
       let totalVisits = 0;
-      if (fs.existsSync(datasetFile)) {
-        const data = JSON.parse(fs.readFileSync(datasetFile, 'utf8'));
+      const data = getCachedJson(datasetFile);
+      if (data) {
         count = data.length;
         totalVisits = data.reduce((acc: number, p: any) => acc + (p.visits?.length || 0), 0);
       }
@@ -2405,8 +2426,8 @@ Clinical Facts:
         datasetFile = path.join(process.cwd(), '2.5kdata_enhanced.json');
       }
       let foundPatient: any = null;
-      if (fs.existsSync(datasetFile)) {
-        const dataset = JSON.parse(fs.readFileSync(datasetFile, 'utf8'));
+      const dataset = getCachedJson(datasetFile);
+      if (dataset) {
         foundPatient = dataset.find((p: any) => p.pregnancy_id === pId || p.patient_id === pId);
       }
 
@@ -2469,8 +2490,8 @@ Clinical Facts:
         datasetFile = path.join(process.cwd(), '2.5kdata_enhanced.json');
       }
       let foundPatient: any = null;
-      if (fs.existsSync(datasetFile)) {
-        const dataset = JSON.parse(fs.readFileSync(datasetFile, 'utf8'));
+      const dataset = getCachedJson(datasetFile);
+      if (dataset) {
         foundPatient = dataset.find((p: any) => p.pregnancy_id === pId || p.patient_id === pId);
       }
 
@@ -2518,8 +2539,8 @@ Clinical Facts:
         datasetFile = path.join(process.cwd(), '2.5kdata_enhanced.json');
       }
       let foundPatient: any = null;
-      if (fs.existsSync(datasetFile)) {
-        const dataset = JSON.parse(fs.readFileSync(datasetFile, 'utf8'));
+      const dataset = getCachedJson(datasetFile);
+      if (dataset) {
         foundPatient = dataset.find((p: any) => p.pregnancy_id === pId || p.patient_id === pId);
       }
 
@@ -2591,8 +2612,8 @@ Clinical Facts:
         datasetFile = path.join(process.cwd(), '2.5kdata_enhanced.json');
       }
       let foundPatient: any = null;
-      if (fs.existsSync(datasetFile)) {
-        const dataset = JSON.parse(fs.readFileSync(datasetFile, 'utf8'));
+      const dataset = getCachedJson(datasetFile);
+      if (dataset) {
         foundPatient = dataset.find((p: any) => p.pregnancy_id === pId || p.patient_id === pId);
       }
 
@@ -2652,8 +2673,8 @@ Clinical Facts:
         datasetFile = path.join(process.cwd(), '2.5kdata_enhanced.json');
       }
       let foundPatient: any = null;
-      if (fs.existsSync(datasetFile)) {
-        const dataset = JSON.parse(fs.readFileSync(datasetFile, 'utf8'));
+      const dataset = getCachedJson(datasetFile);
+      if (dataset) {
         foundPatient = dataset.find((p: any) => p.pregnancy_id === pId || p.patient_id === pId);
       }
 
@@ -2727,9 +2748,7 @@ Clinical Facts:
 
       let deliveryMetrics: any = null;
       const metricsPath = path.join(process.cwd(), 'models', 'delivery_model_metrics.json');
-      if (fs.existsSync(metricsPath)) {
-        deliveryMetrics = JSON.parse(fs.readFileSync(metricsPath, 'utf8'));
-      }
+      deliveryMetrics = getCachedJson(metricsPath);
 
       return res.json({
         pregnancy_id: pId,
@@ -2764,8 +2783,8 @@ Clinical Facts:
         datasetFile = path.join(process.cwd(), '2.5kdata_enhanced.json');
       }
       let count = 0;
-      if (fs.existsSync(datasetFile)) {
-        const dataset = JSON.parse(fs.readFileSync(datasetFile, 'utf8'));
+      const dataset = getCachedJson(datasetFile);
+      if (dataset) {
         count = dataset.length;
       }
 
@@ -2782,8 +2801,10 @@ Clinical Facts:
         timestamp: new Date().toISOString()
       };
 
+      const outPath = path.join(process.cwd(), 'models', 'delivery_model_metrics.json');
       fs.mkdirSync(path.join(process.cwd(), 'models'), { recursive: true });
-      fs.writeFileSync(path.join(process.cwd(), 'models', 'delivery_model_metrics.json'), JSON.stringify(modelOutput, null, 2));
+      fs.writeFileSync(outPath, JSON.stringify(modelOutput, null, 2));
+      invalidateJsonCache(outPath);
 
       return res.json({
         success: true,
@@ -2802,8 +2823,8 @@ Clinical Facts:
       if (!fs.existsSync(metricsPath)) {
         metricsPath = path.join(process.cwd(), 'model_metrics.json');
       }
-      if (fs.existsSync(metricsPath)) {
-        const content = JSON.parse(fs.readFileSync(metricsPath, 'utf8'));
+      const content = getCachedJson(metricsPath);
+      if (content) {
         return res.json({
           ...content,
           model_info: {
@@ -2835,9 +2856,15 @@ Clinical Facts:
   app.get('/api/model-metrics', handleGetMetrics);
   app.get('/api/ml/status', handleGetMetrics);
 
+  let cachedFeatureImportances: any = null;
+
   // 7. GET /api/feature-importance
   app.get('/api/feature-importance', (req, res) => {
     try {
+      if (cachedFeatureImportances) {
+        return res.json(cachedFeatureImportances);
+      }
+
       let impPath = path.join(process.cwd(), 'models', 'feature_importance.csv');
       if (!fs.existsSync(impPath)) {
         impPath = path.join(process.cwd(), 'feature_importance.csv');
@@ -2852,10 +2879,11 @@ Clinical Facts:
           };
         }).filter(f => f.feature);
 
-        return res.json({
+        cachedFeatureImportances = {
           feature_count: features.length,
           feature_importances: features
-        });
+        };
+        return res.json(cachedFeatureImportances);
       }
 
       return res.json({ feature_count: 0, feature_importances: [] });
