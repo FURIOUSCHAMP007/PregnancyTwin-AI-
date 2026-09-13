@@ -132,7 +132,83 @@ export const TwinDeliveryPredictionTab: React.FC<TwinDeliveryPredictionTabProps>
   const [sandboxRisk, setSandboxRisk] = useState<'High Risk' | 'Low Risk'>(derivedFeatures.risk_profile as any);
 
   const [classificationMetrics, setClassificationMetrics] = useState<any>(null);
-  const [activeMetricsTab, setActiveMetricsTab] = useState<'delivery' | 'trajectory'>('delivery');
+  const [activeMetricsTab, setActiveMetricsTab] = useState<'delivery' | 'trajectory' | 'rl_scheduler'>('delivery');
+
+  const RL_ACTIONS = [
+    "ROUTINE",
+    "CLOSE_MONITOR",
+    "INTENSE_SURVEILLANCE",
+    "INPATIENT_CORTICOSTEROIDS",
+    "INDICATED_DELIVERY"
+  ];
+
+  // RL Adaptive Scheduler state hooks
+  const [rlPolicy, setRlPolicy] = useState<any>(null);
+  const [rlGa, setRlGa] = useState<number>(derivedFeatures.latest_gestational_age || 32);
+  const [rlAfi, setRlAfi] = useState<number>(derivedFeatures.latest_afi || 12);
+  const [rlPercentile, setRlPercentile] = useState<number>(derivedFeatures.latest_growth_percentile || 50);
+  const [rlStatusMessage, setRlStatusMessage] = useState<string | null>(null);
+
+  const fetchRlPolicy = async () => {
+    try {
+      const res = await fetch(`/api/rl/policy?ga=${rlGa}&afi=${rlAfi}&percentile=${rlPercentile}`);
+      if (res.ok) {
+        const data = await res.json();
+        setRlPolicy(data);
+      }
+    } catch (err) {
+      console.error("Error fetching RL policy:", err);
+    }
+  };
+
+  const handleRlFeedback = async (approved: boolean, chosenAction?: string) => {
+    if (!rlPolicy) return;
+    try {
+      const body = {
+        ga: rlGa,
+        afi: rlAfi,
+        percentile: rlPercentile,
+        recommendedAction: rlPolicy.recommendedAction,
+        clinicianAction: approved ? rlPolicy.recommendedAction : (chosenAction || rlPolicy.recommendedAction),
+        approved
+      };
+
+      const res = await fetch("/api/rl/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      });
+
+      if (res.ok) {
+        const result = await res.json();
+        setRlStatusMessage(approved 
+          ? `Clinician approved recommendation. Policy reinforced (+1.5 Reward).`
+          : `Clinician override registered to ${chosenAction}. Agent adjusted policy weights.`
+        );
+        await fetchRlPolicy();
+        setTimeout(() => setRlStatusMessage(null), 4000);
+      }
+    } catch (err) {
+      console.error("Error submitting RL feedback:", err);
+    }
+  };
+
+  const handleRlReset = async () => {
+    try {
+      const res = await fetch("/api/rl/reset", { method: "POST" });
+      if (res.ok) {
+        setRlStatusMessage("Reinforcement learning policy weights reset to clinical baseline parameters.");
+        await fetchRlPolicy();
+        setTimeout(() => setRlStatusMessage(null), 4000);
+      }
+    } catch (err) {
+      console.error("Error resetting RL policy:", err);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchRlPolicy();
+  }, [rlGa, rlAfi, rlPercentile]);
 
   React.useEffect(() => {
     fetch('/api/model-metrics')
@@ -638,7 +714,7 @@ export const TwinDeliveryPredictionTab: React.FC<TwinDeliveryPredictionTabProps>
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              Delivery Prediction (XGBoostRegressor)
+              Delivery Prediction (XGBoost)
             </button>
             <button
               onClick={() => setActiveMetricsTab('trajectory')}
@@ -648,12 +724,23 @@ export const TwinDeliveryPredictionTab: React.FC<TwinDeliveryPredictionTabProps>
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              Trajectory Classifier (XGBoostClassifier)
+              Trajectory Classifier (XGBoost)
+            </button>
+            <button
+              onClick={() => setActiveMetricsTab('rl_scheduler')}
+              className={`px-3 py-1.5 rounded-md transition-all cursor-pointer flex items-center gap-1 ${
+                activeMetricsTab === 'rl_scheduler' 
+                  ? 'bg-white text-indigo-700 shadow-2xs border border-slate-200/60 font-bold' 
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5 text-indigo-500 animate-pulse" />
+              <span>Adaptive RL Scheduler (RLCF)</span>
             </button>
           </div>
         </div>
 
-        {activeMetricsTab === 'delivery' ? (
+        {activeMetricsTab === 'delivery' && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Model Performance */}
             <div className="space-y-3">
@@ -705,7 +792,9 @@ export const TwinDeliveryPredictionTab: React.FC<TwinDeliveryPredictionTabProps>
               </div>
             </div>
           </div>
-        ) : (
+        )}
+
+        {activeMetricsTab === 'trajectory' && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Classification Performance */}
             <div className="space-y-3">
@@ -771,6 +860,325 @@ export const TwinDeliveryPredictionTab: React.FC<TwinDeliveryPredictionTabProps>
                   </span>
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {activeMetricsTab === 'rl_scheduler' && (
+          <div className="space-y-5 animate-in fade-in duration-300">
+            {/* Overview Banner */}
+            <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <h5 className="text-xs font-black text-indigo-950 uppercase tracking-wider flex items-center gap-1.5">
+                  <Sparkles className="w-4 h-4 text-indigo-600 animate-spin-slow" />
+                  <span>RLCF Reinforcement Learning Adaptive Scheduler Agent</span>
+                </h5>
+                <p className="text-[11px] text-indigo-900 leading-relaxed max-w-3xl">
+                  Maps continuous fetal gestational biometry onto an active Markov Decision Process (MDP) state-action space. When clinicians override suggestions, temporal difference updates penalize the policy choice, dynamically adjusting recommended surveillance intervals.
+                </p>
+              </div>
+              <button 
+                onClick={handleRlReset}
+                className="px-3 py-1.5 bg-white border border-indigo-300 rounded text-[11px] font-bold text-indigo-700 hover:bg-indigo-100/50 transition-all shrink-0 cursor-pointer"
+              >
+                Reset Weights
+              </button>
+            </div>
+
+            {/* Status Messages */}
+            {rlStatusMessage && (
+              <div className="bg-slate-900 text-slate-100 text-xs px-4 py-2.5 rounded-lg font-mono border border-indigo-850 flex items-center gap-2 animate-bounce">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                <span>{rlStatusMessage}</span>
+              </div>
+            )}
+
+            {/* Simulation Interface Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+              
+              {/* Left Column: Continuous State Controllers (GA, AFI, Growth) */}
+              <div className="lg:col-span-5 space-y-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block border-b border-slate-200 pb-1.5 mb-3">
+                  MDP State Variable Sensors
+                </span>
+
+                {/* State Variable 1: Gestational Age */}
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-xs font-mono">
+                    <span className="text-slate-600">gestational_age</span>
+                    <span className="font-extrabold text-indigo-600">{rlGa.toFixed(1)} weeks</span>
+                  </div>
+                  <input 
+                    type="range" 
+                    min="22" 
+                    max="40" 
+                    step="0.5" 
+                    value={rlGa}
+                    onChange={(e) => setRlGa(parseFloat(e.target.value))}
+                    className="w-full accent-indigo-600 h-1 bg-slate-200 rounded cursor-pointer"
+                  />
+                  <div className="flex justify-between text-[9px] text-slate-400">
+                    <span>Extreme Preterm (&lt;28w)</span>
+                    <span>Late Preterm (28-37w)</span>
+                    <span>Term (&gt;37w)</span>
+                  </div>
+                </div>
+
+                {/* State Variable 2: AFI */}
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-xs font-mono">
+                    <span className="text-slate-600">amniotic_fluid_index (afi)</span>
+                    <span className="font-extrabold text-indigo-600">{rlAfi.toFixed(1)} cm</span>
+                  </div>
+                  <input 
+                    type="range" 
+                    min="2" 
+                    max="22" 
+                    step="0.5" 
+                    value={rlAfi}
+                    onChange={(e) => setRlAfi(parseFloat(e.target.value))}
+                    className="w-full accent-indigo-600 h-1 bg-slate-200 rounded cursor-pointer"
+                  />
+                  <div className="flex justify-between text-[9px] text-slate-400">
+                    <span>Oligohydramnios (&lt;5cm)</span>
+                    <span>Marginal (5-8cm)</span>
+                    <span>Normal (&gt;8cm)</span>
+                  </div>
+                </div>
+
+                {/* State Variable 3: Growth Percentile */}
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-xs font-mono">
+                    <span className="text-slate-600">fetal_growth_percentile</span>
+                    <span className="font-extrabold text-indigo-600">{rlPercentile}th %ile</span>
+                  </div>
+                  <input 
+                    type="range" 
+                    min="1" 
+                    max="99" 
+                    step="1" 
+                    value={rlPercentile}
+                    onChange={(e) => setRlPercentile(parseInt(e.target.value))}
+                    className="w-full accent-indigo-600 h-1 bg-slate-200 rounded cursor-pointer"
+                  />
+                  <div className="flex justify-between text-[9px] text-slate-400">
+                    <span>Severe FGR (&lt;10th)</span>
+                    <span>Decelerating (10-25th)</span>
+                    <span>Adequate (&gt;25th)</span>
+                  </div>
+                </div>
+
+                {/* Presets Grid */}
+                <div className="pt-3 border-t border-slate-200">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block mb-2">
+                    Quick Clinical Presets
+                  </span>
+                  <div className="grid grid-cols-2 gap-2 text-[10px]">
+                    <button 
+                      onClick={() => { setRlGa(38); setRlAfi(4.2); setRlPercentile(8); }}
+                      className="p-1.5 bg-white border border-slate-200 hover:border-indigo-400 text-slate-700 font-bold rounded transition-all text-left truncate cursor-pointer"
+                    >
+                      🚨 Term Oligo + FGR
+                    </button>
+                    <button 
+                      onClick={() => { setRlGa(26); setRlAfi(12.5); setRlPercentile(45); }}
+                      className="p-1.5 bg-white border border-slate-200 hover:border-indigo-400 text-slate-700 font-bold rounded transition-all text-left truncate cursor-pointer"
+                    >
+                      ✅ Extreme Preterm Normal
+                    </button>
+                    <button 
+                      onClick={() => { setRlGa(32); setRlAfi(6.5); setRlPercentile(18); }}
+                      className="p-1.5 bg-white border border-slate-200 hover:border-indigo-400 text-slate-700 font-bold rounded transition-all text-left truncate cursor-pointer"
+                    >
+                      ⚠️ Late Preterm Marginal
+                    </button>
+                    <button 
+                      onClick={() => { setRlGa(30); setRlAfi(3.5); setRlPercentile(5); }}
+                      className="p-1.5 bg-white border border-slate-200 hover:border-indigo-400 text-slate-700 font-bold rounded transition-all text-left truncate cursor-pointer"
+                    >
+                      🚨 Preterm Severe Restrict
+                    </button>
+                  </div>
+                </div>
+
+                {/* State String Mapping Display */}
+                <div className="bg-slate-900 text-slate-300 p-2.5 rounded-lg text-[10px] font-mono flex items-center justify-between border border-slate-800">
+                  <span>ACTIVE MDP STATE KEY:</span>
+                  <span className="text-amber-400 font-bold">{rlPolicy?.state || "LOADING..."}</span>
+                </div>
+              </div>
+
+              {/* Center Column: RL Recommendation & Clinician Feedback overrides */}
+              <div className="lg:col-span-4 space-y-4 flex flex-col justify-between">
+                {/* Active Recommendation Card */}
+                <div className="bg-white border border-slate-250 p-4.5 rounded-xl shadow-2xs space-y-2.5 border-l-4 border-l-indigo-600 flex-1">
+                  <div className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
+                    RL POLICY AGENT SUGGESTION
+                  </div>
+                  <div className="bg-indigo-50/50 border border-indigo-150 p-3 rounded-lg">
+                    <span className="text-xs font-mono font-bold block text-indigo-700">Recommended Schedule Action:</span>
+                    <span className="text-base font-black text-indigo-950 font-sans mt-1 block">
+                      {rlPolicy?.recommendedAction?.replace(/_/g, " ") || "Calculating..."}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 leading-relaxed font-medium">
+                    The policy has selected this course of action with maximum expected value based on the current fetal profile weights.
+                  </p>
+                </div>
+
+                {/* Clinician Action Inputs */}
+                <div className="bg-slate-950 text-slate-200 p-4 rounded-xl shadow-md space-y-3">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block">
+                    CLINICIAN CRITIQUE FEEDBACK
+                  </span>
+                  
+                  <button
+                    onClick={() => handleRlFeedback(true)}
+                    className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs rounded-lg transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer"
+                  >
+                    <CheckCircle2 className="w-4 h-4 text-emerald-100" />
+                    <span>Approve Policy Suggestion (+1.5 Reward)</span>
+                  </button>
+
+                  <div className="relative flex py-1 items-center">
+                    <div className="flex-grow border-t border-slate-800"></div>
+                    <span className="flex-shrink mx-2 text-[9px] font-mono font-bold text-slate-500 uppercase">OR OVERRIDE SCHEDULE</span>
+                    <div className="flex-grow border-t border-slate-800"></div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    {RL_ACTIONS.map(action => {
+                      if (action === rlPolicy?.recommendedAction) return null;
+                      return (
+                        <button
+                          key={`override-${action}`}
+                          onClick={() => handleRlFeedback(false, action)}
+                          className="w-full text-left p-2 bg-slate-900 border border-slate-800 hover:border-rose-800 hover:bg-rose-950/25 text-slate-300 hover:text-rose-200 text-[11px] font-semibold rounded transition-all flex items-center justify-between cursor-pointer"
+                        >
+                          <span>{action.replace(/_/g, " ")}</span>
+                          <span className="text-[9px] font-mono text-rose-500 font-bold uppercase">Penalty override</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column: Dynamic Probability distributions and weights charts */}
+              <div className="lg:col-span-3 bg-white p-4 rounded-xl border border-slate-250 flex flex-col justify-between space-y-4">
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block border-b border-slate-200 pb-1.5 mb-2.5">
+                    Softmax Policy Probabilities
+                  </span>
+                  
+                  {/* Custom inline progress indicators for policy actions */}
+                  <div className="space-y-3">
+                    {rlPolicy?.probabilities?.map((item: any) => {
+                      const isRecommended = item.action === rlPolicy.recommendedAction;
+                      const pct = Math.round(item.probability * 100);
+                      return (
+                        <div key={`prob-${item.action}`} className="space-y-1">
+                          <div className="flex justify-between text-[10px] font-mono font-bold">
+                            <span className={isRecommended ? "text-indigo-700 font-black" : "text-slate-600"}>
+                              {item.action.replace(/_/g, " ")}
+                            </span>
+                            <span className="text-slate-500">{pct}%</span>
+                          </div>
+                          <div className="w-full bg-slate-100 rounded-full h-2">
+                            <div 
+                              className={`h-2 rounded-full transition-all duration-500 ${isRecommended ? "bg-indigo-600" : "bg-slate-400"}`}
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* RL Stat Counters */}
+                <div className="bg-slate-50 border border-slate-150 p-3 rounded-lg grid grid-cols-2 gap-2 text-center text-xs font-mono">
+                  <div className="border-r border-slate-200 pr-1">
+                    <span className="text-[9px] text-slate-400 font-bold block uppercase">FEEDBACK COUNT</span>
+                    <span className="text-base font-black text-slate-800">{rlPolicy?.feedbackCount || 0}</span>
+                  </div>
+                  <div>
+                    <span className="text-[9px] text-slate-400 font-bold block uppercase">REWARD SUM</span>
+                    <span className={`text-base font-black ${Number(rlPolicy?.cumulativeReward) >= 0 ? "text-emerald-700" : "text-rose-700"}`}>
+                      {Number(rlPolicy?.cumulativeReward) > 0 ? `+${rlPolicy?.cumulativeReward}` : rlPolicy?.cumulativeReward}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Learning Progression and Feedback logs */}
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-5 pt-3 border-t border-slate-100">
+              
+              {/* Learning curve chart (Cumulative reward over steps) */}
+              <div className="md:col-span-5 space-y-2 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block border-b border-slate-200 pb-1.5 mb-2">
+                  Cumulative Reward convergence
+                </span>
+                <div className="h-44 w-full text-[9px] font-mono">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={rlPolicy?.logs || []} margin={{ top: 10, right: 10, left: -25, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                      <XAxis dataKey="step" stroke="#94a3b8" label={{ value: 'Feedback Step', position: 'insideBottom', offset: -5, fill: '#64748b' }} />
+                      <YAxis stroke="#94a3b8" />
+                      <Tooltip 
+                        contentStyle={{ backgroundColor: '#0f172a', border: 'none', borderRadius: '8px', color: '#fff', fontSize: '10px' }} 
+                        labelStyle={{ fontWeight: 'bold', color: '#94a3b8' }}
+                      />
+                      <Line type="monotone" dataKey="cumulativeReward" stroke="#6366f1" strokeWidth={2.5} dot={{ r: 4, fill: '#6366f1' }} activeDot={{ r: 6 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Policy Audit Trial Bellman Logs */}
+              <div className="md:col-span-7 space-y-2">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block border-b border-slate-200 pb-1.5 mb-2">
+                  Feedback Policy Iteration Ledger
+                </span>
+                
+                <div className="max-h-44 overflow-y-auto border border-slate-200 rounded-lg text-[10px] font-mono">
+                  <table className="w-full text-left border-collapse">
+                    <thead className="bg-slate-50 text-slate-500 font-bold border-b border-slate-200 sticky top-0">
+                      <tr>
+                        <th className="p-2">Step</th>
+                        <th className="p-2">Fetal MDP State</th>
+                        <th className="p-2">Agent Sug.</th>
+                        <th className="p-2">Chosen</th>
+                        <th className="p-2 text-right">Reward</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 bg-white">
+                      {rlPolicy?.logs?.slice().reverse().map((log: any) => (
+                        <tr key={`log-row-${log.step}`} className="hover:bg-slate-50 transition-colors">
+                          <td className="p-2 font-bold text-slate-400">#{log.step}</td>
+                          <td className="p-2 text-slate-700 font-medium truncate max-w-[120px]" title={log.state}>
+                            {log.state}
+                          </td>
+                          <td className="p-2 font-semibold text-slate-800">{log.recommended}</td>
+                          <td className="p-2">
+                            <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold ${
+                              log.approved ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-rose-50 text-rose-700 border border-rose-200"
+                            }`}>
+                              {log.chosen}
+                            </span>
+                          </td>
+                          <td className={`p-2 text-right font-bold ${log.reward > 0 ? "text-emerald-600" : "text-rose-600"}`}>
+                            {log.reward > 0 ? `+${log.reward}` : log.reward}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
             </div>
           </div>
         )}

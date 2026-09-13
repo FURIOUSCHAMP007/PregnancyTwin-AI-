@@ -2865,6 +2865,225 @@ Clinical Facts:
   });
 
 
+  // ============================================================
+  // ADAPTIVE SCHEDULER REINFORCEMENT LEARNING (RLCF) ENGINE
+  // ============================================================
+
+  const RL_ACTIONS = [
+    "ROUTINE",
+    "CLOSE_MONITOR",
+    "INTENSE_SURVEILLANCE",
+    "INPATIENT_CORTICOSTEROIDS",
+    "INDICATED_DELIVERY"
+  ];
+
+  const RL_GA_CATEGORIES = ["EXTREME_PRETERM", "LATE_PRETERM", "TERM"];
+  const RL_FLUID_CATEGORIES = ["OLIGOHYDRAC", "MARGINAL", "NORMAL"];
+  const RL_GROWTH_CATEGORIES = ["FGR", "DECELERATING", "ADEQUATE"];
+
+  const buildInitialQTable = () => {
+    const table: Record<string, Record<string, number>> = {};
+    RL_GA_CATEGORIES.forEach(ga => {
+      RL_FLUID_CATEGORIES.forEach(fluid => {
+        RL_GROWTH_CATEGORIES.forEach(growth => {
+          const stateKey = `${ga}_${fluid}_${growth}`;
+          table[stateKey] = {};
+          
+          RL_ACTIONS.forEach(action => {
+            let qVal = 1.0;
+            
+            if (ga === "TERM") {
+              if (fluid === "OLIGOHYDRAC" || growth === "FGR") {
+                if (action === "INDICATED_DELIVERY") qVal = 8.5;
+                else if (action === "INPATIENT_CORTICOSTEROIDS") qVal = 5.0;
+              } else if (fluid === "MARGINAL" || growth === "DECELERATING") {
+                if (action === "INTENSE_SURVEILLANCE") qVal = 7.5;
+                else if (action === "INDICATED_DELIVERY") qVal = 6.0;
+              } else {
+                if (action === "ROUTINE") qVal = 8.0;
+                else if (action === "CLOSE_MONITOR") qVal = 4.0;
+              }
+            } else if (ga === "LATE_PRETERM") {
+              if (fluid === "OLIGOHYDRAC" || growth === "FGR") {
+                if (action === "INPATIENT_CORTICOSTEROIDS") qVal = 8.5;
+                else if (action === "INTENSE_SURVEILLANCE") qVal = 7.0;
+                else if (action === "INDICATED_DELIVERY") qVal = 5.5;
+              } else if (fluid === "MARGINAL" || growth === "DECELERATING") {
+                if (action === "CLOSE_MONITOR") qVal = 8.0;
+                else if (action === "INTENSE_SURVEILLANCE") qVal = 7.0;
+              } else {
+                if (action === "ROUTINE") qVal = 8.5;
+                else if (action === "CLOSE_MONITOR") qVal = 4.5;
+              }
+            } else { // EXTREME_PRETERM (<28w)
+              if (fluid === "OLIGOHYDRAC" || growth === "FGR") {
+                if (action === "INPATIENT_CORTICOSTEROIDS") qVal = 9.0;
+                else if (action === "INTENSE_SURVEILLANCE") qVal = 6.5;
+              } else if (fluid === "MARGINAL" || growth === "DECELERATING") {
+                if (action === "CLOSE_MONITOR") qVal = 8.0;
+                else if (action === "INTENSE_SURVEILLANCE") qVal = 5.5;
+              } else {
+                if (action === "ROUTINE") qVal = 9.0;
+              }
+            }
+            
+            table[stateKey][action] = Number(qVal.toFixed(2));
+          });
+        });
+      });
+    });
+    return table;
+  };
+
+  const getDiscreteRLState = (ga: number, afi: number, percentile: number): string => {
+    let gaCat = "TERM";
+    if (ga < 28) gaCat = "EXTREME_PRETERM";
+    else if (ga < 37) gaCat = "LATE_PRETERM";
+
+    let fluidCat = "NORMAL";
+    if (afi < 5.0) fluidCat = "OLIGOHYDRAC";
+    else if (afi < 8.0) fluidCat = "MARGINAL";
+
+    let growthCat = "ADEQUATE";
+    if (percentile < 10) growthCat = "FGR";
+    else if (percentile < 25) growthCat = "DECELERATING";
+
+    return `${gaCat}_${fluidCat}_${growthCat}`;
+  };
+
+  let rlQTable = buildInitialQTable();
+  const initialLogs = [
+    { step: 1, state: "LATE_PRETERM_OLIGOHYDRAC_FGR", recommended: "INPATIENT_CORTICOSTEROIDS", chosen: "INPATIENT_CORTICOSTEROIDS", approved: true, reward: 1.5, cumulativeReward: 1.5, timestamp: new Date(Date.now() - 3600000 * 5).toISOString() },
+    { step: 2, state: "TERM_NORMAL_ADEQUATE", recommended: "ROUTINE", chosen: "ROUTINE", approved: true, reward: 1.5, cumulativeReward: 3.0, timestamp: new Date(Date.now() - 3600000 * 4).toISOString() },
+    { step: 3, state: "LATE_PRETERM_MARGINAL_DECELERATING", recommended: "ROUTINE", chosen: "CLOSE_MONITOR", approved: false, reward: -2.0, cumulativeReward: 1.0, timestamp: new Date(Date.now() - 3600000 * 3).toISOString() },
+    { step: 4, state: "LATE_PRETERM_MARGINAL_DECELERATING", recommended: "CLOSE_MONITOR", chosen: "CLOSE_MONITOR", approved: true, reward: 1.5, cumulativeReward: 2.5, timestamp: new Date(Date.now() - 3600000 * 2).toISOString() },
+    { step: 5, state: "TERM_OLIGOHYDRAC_FGR", recommended: "INPATIENT_CORTICOSTEROIDS", chosen: "INDICATED_DELIVERY", approved: false, reward: -2.0, cumulativeReward: 0.5, timestamp: new Date(Date.now() - 3600000 * 1).toISOString() }
+  ];
+  let rlTrainingLogs = [...initialLogs];
+  let rlFeedbackCount = rlTrainingLogs.filter(l => l.step > 0).length;
+  let rlCumulativeReward = 0.5;
+
+  // GET /api/rl/policy
+  app.get('/api/rl/policy', (req, res) => {
+    try {
+      const ga = parseFloat(req.query.ga as string || "32");
+      const afi = parseFloat(req.query.afi as string || "12");
+      const percentile = parseFloat(req.query.percentile as string || "50");
+
+      const activeState = getDiscreteRLState(ga, afi, percentile);
+      const stateQValues = rlQTable[activeState] || rlQTable["LATE_PRETERM_NORMAL_ADEQUATE"];
+
+      // Calculate soft probabilities using Softmax over Q values (temperature = 2.0)
+      const temp = 2.0;
+      const qEntries = Object.entries(stateQValues);
+      const exps = qEntries.map(([act, q]) => ({ action: act, exp: Math.exp(q / temp) }));
+      const sumExps = exps.reduce((sum, item) => sum + item.exp, 0);
+      const probabilities = exps.map(item => ({
+        action: item.action,
+        probability: Number((item.exp / sumExps).toFixed(3))
+      }));
+
+      // Find recommended action (max Q-value)
+      let bestAction = RL_ACTIONS[0];
+      let maxQ = -Infinity;
+      qEntries.forEach(([act, q]) => {
+        if (q > maxQ) {
+          maxQ = q;
+          bestAction = act;
+        }
+      });
+
+      return res.json({
+        state: activeState,
+        qValues: stateQValues,
+        probabilities,
+        recommendedAction: bestAction,
+        feedbackCount: rlFeedbackCount,
+        cumulativeReward: rlCumulativeReward,
+        logs: rlTrainingLogs,
+        actions: RL_ACTIONS
+      });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  // POST /api/rl/feedback
+  app.post('/api/rl/feedback', (req, res) => {
+    try {
+      const { ga, afi, percentile, recommendedAction, clinicianAction, approved } = req.body;
+      if (!ga || !afi || !percentile || !recommendedAction || !clinicianAction) {
+        return res.status(400).json({ error: "Missing required parameters in feedback body." });
+      }
+
+      const activeState = getDiscreteRLState(ga, afi, percentile);
+      if (!rlQTable[activeState]) {
+        rlQTable[activeState] = { ROUTINE: 1.0, CLOSE_MONITOR: 1.0, INTENSE_SURVEILLANCE: 1.0, INPATIENT_CORTICOSTEROIDS: 1.0, INDICATED_DELIVERY: 1.0 };
+      }
+
+      const alpha = 0.3; // RL Learning Rate
+      let reward = 0;
+
+      if (approved) {
+        reward = 1.5; // Positive alignment reward
+        const currentQ = rlQTable[activeState][recommendedAction] || 0;
+        rlQTable[activeState][recommendedAction] = Number((currentQ + alpha * (reward - currentQ)).toFixed(3));
+      } else {
+        reward = -2.0; // Negative override penalty for recommended action
+        const currentQRec = rlQTable[activeState][recommendedAction] || 0;
+        rlQTable[activeState][recommendedAction] = Number((currentQRec + alpha * (reward - currentQRec)).toFixed(3));
+
+        // Positive reinforcement update for overridden clinician choice
+        const overrideReward = 1.5;
+        const currentQClin = rlQTable[activeState][clinicianAction] || 0;
+        rlQTable[activeState][clinicianAction] = Number((currentQClin + alpha * (overrideReward - currentQClin)).toFixed(3));
+      }
+
+      rlFeedbackCount += 1;
+      rlCumulativeReward = Number((rlCumulativeReward + (approved ? 1.5 : -2.0)).toFixed(2));
+
+      const newLog = {
+        step: rlTrainingLogs.length + 1,
+        state: activeState,
+        recommended: recommendedAction,
+        chosen: clinicianAction,
+        approved: !!approved,
+        reward: approved ? 1.5 : -2.0,
+        cumulativeReward: rlCumulativeReward,
+        timestamp: new Date().toISOString()
+      };
+      rlTrainingLogs.push(newLog);
+
+      return res.json({
+        success: true,
+        message: "Policy weights updated successfully via continuous Q-learning temporal difference rule.",
+        step: newLog,
+        cumulativeReward: rlCumulativeReward,
+        feedbackCount: rlFeedbackCount
+      });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  // POST /api/rl/reset
+  app.post('/api/rl/reset', (req, res) => {
+    try {
+      rlQTable = buildInitialQTable();
+      rlTrainingLogs = [...initialLogs];
+      rlFeedbackCount = rlTrainingLogs.length;
+      rlCumulativeReward = 0.5;
+
+      return res.json({
+        success: true,
+        message: "Reinforcement learning policy weights reset successfully to baseline parameters."
+      });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+
   // --- Vite Middleware for Development / Static Hosting in Production ---
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({

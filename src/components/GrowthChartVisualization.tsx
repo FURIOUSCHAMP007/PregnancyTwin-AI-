@@ -146,6 +146,9 @@ export const GrowthChartVisualization: React.FC<GrowthChartVisualizationProps> =
   const [visitAId, setVisitAId] = useState<string>(defaultVisitA);
   const [visitBId, setVisitBId] = useState<string>(defaultVisitB);
 
+  // Compare All 4 Visits state
+  const [compareAllVisits, setCompareAllVisits] = useState<boolean>(false);
+
   // Synchronize when patient changes if selected IDs are invalid
   React.useEffect(() => {
     if (!visits.some(v => v.id === visitAId)) {
@@ -277,6 +280,7 @@ export const GrowthChartVisualization: React.FC<GrowthChartVisualizationProps> =
 
   // Handlers for quick comparison presets
   const handleSetPrevVsCurrent = () => {
+    setCompareAllVisits(false);
     if (visits.length >= 2) {
       setVisitAId(visits[visits.length - 2].id);
       setVisitBId(visits[visits.length - 1].id);
@@ -285,6 +289,7 @@ export const GrowthChartVisualization: React.FC<GrowthChartVisualizationProps> =
   };
 
   const handleSetFirstVsLatest = () => {
+    setCompareAllVisits(false);
     if (visits.length >= 2) {
       setVisitAId(visits[0].id);
       setVisitBId(visits[visits.length - 1].id);
@@ -469,13 +474,17 @@ export const GrowthChartVisualization: React.FC<GrowthChartVisualizationProps> =
             </div>
 
             {/* Visit A Selector */}
-            <div className="flex items-center space-x-1.5 bg-white px-2.5 py-1 rounded-md border border-slate-200 shadow-xs">
+            <div className={`flex items-center space-x-1.5 bg-white px-2.5 py-1 rounded-md border border-slate-200 shadow-xs transition-opacity duration-200 ${compareAllVisits ? 'opacity-50' : ''}`}>
               <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
               <span className="text-slate-500 font-medium text-[11px]">Visit A (Base):</span>
               <select
                 value={visitAId}
-                onChange={(e) => setVisitAId(e.target.value)}
-                className="bg-transparent font-medium text-slate-900 text-xs focus:outline-none cursor-pointer pr-1"
+                disabled={compareAllVisits}
+                onChange={(e) => {
+                  setVisitAId(e.target.value);
+                  setCompareAllVisits(false);
+                }}
+                className="bg-transparent font-medium text-slate-900 text-xs focus:outline-none cursor-pointer pr-1 disabled:cursor-not-allowed"
               >
                 {visits.map(v => (
                   <option key={v.id} value={v.id}>
@@ -488,13 +497,17 @@ export const GrowthChartVisualization: React.FC<GrowthChartVisualizationProps> =
             <ArrowRight className="w-3.5 h-3.5 text-slate-400 hidden sm:inline" />
 
             {/* Visit B Selector */}
-            <div className="flex items-center space-x-1.5 bg-white px-2.5 py-1 rounded-md border border-slate-200 shadow-xs">
+            <div className={`flex items-center space-x-1.5 bg-white px-2.5 py-1 rounded-md border border-slate-200 shadow-xs transition-opacity duration-200 ${compareAllVisits ? 'opacity-50' : ''}`}>
               <span className="w-2 h-2 rounded-full bg-teal-600"></span>
               <span className="text-slate-500 font-medium text-[11px]">Visit B (Target):</span>
               <select
                 value={visitBId}
-                onChange={(e) => setVisitBId(e.target.value)}
-                className="bg-transparent font-medium text-slate-900 text-xs focus:outline-none cursor-pointer pr-1"
+                disabled={compareAllVisits}
+                onChange={(e) => {
+                  setVisitBId(e.target.value);
+                  setCompareAllVisits(false);
+                }}
+                className="bg-transparent font-medium text-slate-900 text-xs focus:outline-none cursor-pointer pr-1 disabled:cursor-not-allowed"
               >
                 {visits.map(v => (
                   <option key={v.id} value={v.id}>
@@ -507,25 +520,171 @@ export const GrowthChartVisualization: React.FC<GrowthChartVisualizationProps> =
 
           {/* Quick Preset Buttons & Delta Summary */}
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-[10px] text-slate-500">Presets:</span>
+            <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">Presets:</span>
             <button
               onClick={handleSetPrevVsCurrent}
-              className="px-2 py-0.5 rounded-md bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-[10px] font-medium transition-colors"
+              className={`px-2.5 py-1 rounded-md border text-[10px] font-bold transition-colors ${
+                !compareAllVisits && visitAId === (previousVisit?.id || (visits.length >= 2 ? visits[visits.length - 2].id : '')) && visitBId === (currentVisit?.id || (visits.length >= 1 ? visits[visits.length - 1].id : ''))
+                  ? 'bg-slate-900 border-slate-900 text-white'
+                  : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
+              }`}
             >
               Previous vs Current
             </button>
             <button
               onClick={handleSetFirstVsLatest}
-              className="px-2 py-0.5 rounded-md bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-[10px] font-medium transition-colors"
+              className={`px-2.5 py-1 rounded-md border text-[10px] font-bold transition-colors ${
+                !compareAllVisits && visitAId === (visits[0]?.id || '') && visitBId === (visits[visits.length - 1]?.id || '')
+                  ? 'bg-slate-900 border-slate-900 text-white'
+                  : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
+              }`}
             >
               First vs Latest
+            </button>
+            <button
+              onClick={() => {
+                setCompareAllVisits(true);
+                setShowComparisonLines(true);
+              }}
+              className={`px-2.5 py-1 rounded-md border text-[10px] font-bold transition-colors ${
+                compareAllVisits
+                  ? 'bg-teal-700 border-teal-700 text-white shadow-xs'
+                  : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
+              }`}
+            >
+              All {visits.length} Visits
             </button>
           </div>
         </div>
       )}
 
+      {/* 3. All Visits Multi-Dimensional Comparison Ledger */}
+      {showComparisonLines && compareAllVisits && (
+        <div className="bg-slate-50 border-b border-slate-200 px-4 py-3.5 space-y-3 animate-fade-in">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+              <Layers className="w-3.5 h-3.5 text-teal-700" />
+              <span>All {visits.length} Visits Longitudinal Comparison Ledger</span>
+            </span>
+            <span className="text-[10px] text-slate-500 font-semibold bg-white border border-slate-200 px-2.5 py-0.5 rounded-full shadow-2xs">
+              Showing growth metrics, fluid volume, and velocities across all prenatal checkpoints
+            </span>
+          </div>
+
+          <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-2xs">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="bg-slate-50 text-slate-500 font-bold tracking-wider uppercase text-[9px] border-b border-slate-200">
+                  <th className="py-2.5 px-3">Visit Node</th>
+                  <th className="py-2.5 px-3">Gestation</th>
+                  <th className="py-2.5 px-3">EFW (Fetal Weight)</th>
+                  <th className="py-2.5 px-3">AFI (Fluid Index)</th>
+                  <th className="py-2.5 px-3">Growth Percentile</th>
+                  <th className="py-2.5 px-3">Sonographic Calipers</th>
+                  <th className="py-2.5 px-3">Review Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {visits.map((v, idx) => {
+                  const prevV = idx > 0 ? visits[idx - 1] : null;
+                  
+                  // Calculate prior delta
+                  let efwDeltaStr = '—';
+                  let efwVelocityStr = '';
+                  if (prevV) {
+                    const gaCurr = v.gestationalAgeWeeks + v.gestationalAgeDays / 7;
+                    const gaPrev = prevV.gestationalAgeWeeks + prevV.gestationalAgeDays / 7;
+                    const weeks = Math.max(0.1, gaCurr - gaPrev);
+                    const efwDiff = v.estimatedFetalWeight_g - prevV.estimatedFetalWeight_g;
+                    const pct = ((efwDiff / prevV.estimatedFetalWeight_g) * 100).toFixed(1);
+                    efwDeltaStr = `${efwDiff >= 0 ? '+' : ''}${efwDiff}g (${pct}%)`;
+                    efwVelocityStr = `${Math.round(efwDiff / weeks)} g/wk`;
+                  }
+
+                  let afiDeltaStr = '—';
+                  let afiVelocityStr = '';
+                  if (prevV) {
+                    const gaCurr = v.gestationalAgeWeeks + v.gestationalAgeDays / 7;
+                    const gaPrev = prevV.gestationalAgeWeeks + prevV.gestationalAgeDays / 7;
+                    const weeks = Math.max(0.1, gaCurr - gaPrev);
+                    const afiDiff = v.amnioticFluidIndex_cm - prevV.amnioticFluidIndex_cm;
+                    const pct = ((afiDiff / prevV.amnioticFluidIndex_cm) * 100).toFixed(1);
+                    afiDeltaStr = `${afiDiff >= 0 ? '+' : ''}${afiDiff.toFixed(1)}cm (${pct}%)`;
+                    afiVelocityStr = `${(afiDiff / weeks).toFixed(2)} cm/wk`;
+                  }
+
+                  let pctDeltaStr = '—';
+                  if (prevV) {
+                    const pctDiff = v.growthPercentile - prevV.growthPercentile;
+                    pctDeltaStr = `${pctDiff >= 0 ? '+' : ''}${pctDiff} %ile`;
+                  }
+
+                  return (
+                    <tr key={v.id} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="py-3 px-3 font-bold text-slate-950">
+                        <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-800 border border-slate-200 text-[10px] font-black mr-2">
+                          #{v.visitNumber}
+                        </span>
+                        <span className="text-slate-500 font-mono text-[10px]">{v.date}</span>
+                      </td>
+                      <td className="py-3 px-3 font-semibold text-slate-800">
+                        {v.gestationalAgeWeeks}w {v.gestationalAgeDays}d
+                      </td>
+                      <td className="py-3 px-3">
+                        <div className="font-mono font-bold text-slate-900">{v.estimatedFetalWeight_g} g</div>
+                        {prevV ? (
+                          <div className="text-[10px] text-slate-500 mt-0.5 font-medium">
+                            <span className="text-sky-700 font-semibold">{efwDeltaStr}</span> &bull; {efwVelocityStr}
+                          </div>
+                        ) : (
+                          <div className="text-[10px] text-slate-400 italic font-mono mt-0.5">Baseline establishment</div>
+                        )}
+                      </td>
+                      <td className="py-3 px-3">
+                        <div className="font-mono font-bold text-slate-900">{v.amnioticFluidIndex_cm.toFixed(1)} cm <span className="text-[10px] text-slate-400 font-normal">(SDP: {v.singleDeepestPocket_cm}cm)</span></div>
+                        {prevV ? (
+                          <div className="text-[10px] text-slate-500 mt-0.5 font-medium">
+                            <span className={v.amnioticFluidIndex_cm < 8 ? 'text-amber-600 font-semibold' : 'text-slate-600'}>{afiDeltaStr}</span> &bull; {afiVelocityStr}
+                          </div>
+                        ) : (
+                          <div className="text-[10px] text-slate-400 italic font-mono mt-0.5">Baseline establishment</div>
+                        )}
+                      </td>
+                      <td className="py-3 px-3">
+                        <div className="font-mono font-bold text-slate-900">{v.growthPercentile}th %ile</div>
+                        {prevV ? (
+                          <div className="text-[10px] text-slate-500 mt-0.5 font-medium">
+                            <span className={v.growthPercentile < 10 ? 'text-rose-600 font-semibold' : 'text-emerald-700 font-semibold'}>{pctDeltaStr}</span>
+                          </div>
+                        ) : (
+                          <div className="text-[10px] text-slate-400 italic font-mono mt-0.5">Baseline establishment</div>
+                        )}
+                      </td>
+                      <td className="py-3 px-3 font-mono text-[10px] text-slate-600 leading-normal">
+                        <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
+                          <span>HC: <strong className="text-slate-800">{v.biometrics?.hc_mm ?? '—'} mm</strong></span>
+                          <span>AC: <strong className="text-slate-800">{v.biometrics?.ac_mm ?? '—'} mm</strong></span>
+                          <span>FL: <strong className="text-slate-800">{v.biometrics?.fl_mm ?? '—'} mm</strong></span>
+                          <span>BPD: <strong className="text-slate-800">{v.biometrics?.bpd_mm ?? '—'} mm</strong></span>
+                        </div>
+                      </td>
+                      <td className="py-3 px-3">
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{v.doctorReviewStatus}</span>
+                          <span className="text-[9px] font-mono text-slate-400">Scan Quality: {v.sourceConfidence * 100}%</span>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {/* 3. Comparison Delta KPI Card (Active when comparison is enabled) */}
-      {showComparisonLines && comparisonData && (
+      {showComparisonLines && !compareAllVisits && comparisonData && (
         <div className="bg-slate-50 border-b border-slate-200 px-4 py-3">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             
@@ -648,26 +807,46 @@ export const GrowthChartVisualization: React.FC<GrowthChartVisualizationProps> =
                     <Tooltip content={<CustomTooltip />} />
 
                     {/* Comparison Lines */}
-                    {showComparisonLines && visitAXLabel && (
-                      <ReferenceLine
-                        x={visitAXLabel}
-                        stroke="#6366f1"
-                        strokeWidth={1.5}
-                        strokeDasharray="3 3"
-                        label={{ value: 'A', fill: '#6366f1', fontSize: 9, position: 'top' }}
-                      />
+                    {showComparisonLines && (
+                      compareAllVisits ? (
+                        visits.map((v, i) => (
+                          <ReferenceLine
+                            key={`ref-all-efw-${v.id}`}
+                            x={`${v.gestationalAgeWeeks}w`}
+                            stroke={['#6366f1', '#0d9488', '#f59e0b', '#8b5cf6', '#ec4899'][i % 5]}
+                            strokeWidth={1.5}
+                            strokeDasharray="3 3"
+                            label={{ value: `V${v.visitNumber}`, fill: ['#6366f1', '#0d9488', '#f59e0b', '#8b5cf6', '#ec4899'][i % 5], fontSize: 9, position: 'top' }}
+                          />
+                        ))
+                      ) : (
+                        <>
+                          {visitAXLabel && (
+                            <ReferenceLine
+                              x={visitAXLabel}
+                              stroke="#6366f1"
+                              strokeWidth={1.5}
+                              strokeDasharray="3 3"
+                              label={{ value: 'A', fill: '#6366f1', fontSize: 9, position: 'top' }}
+                            />
+                          )}
+                          {visitBXLabel && (
+                            <ReferenceLine
+                              x={visitBXLabel}
+                              stroke="#0d9488"
+                              strokeWidth={1.5}
+                              strokeDasharray="3 3"
+                              label={{ value: 'B', fill: '#0d9488', fontSize: 9, position: 'top' }}
+                            />
+                          )}
+                          {visitAXLabel && visitBXLabel && (
+                            <IntervalArea x1={visitAXLabel} x2={visitBXLabel} fill="#6366f1" fillOpacity={0.06} />
+                          )}
+                        </>
+                      )
                     )}
-                    {showComparisonLines && visitBXLabel && (
-                      <ReferenceLine
-                        x={visitBXLabel}
-                        stroke="#0d9488"
-                        strokeWidth={1.5}
-                        strokeDasharray="3 3"
-                        label={{ value: 'B', fill: '#0d9488', fontSize: 9, position: 'top' }}
-                      />
-                    )}
-                    {showComparisonLines && visitAXLabel && visitBXLabel && (
-                      <IntervalArea x1={visitAXLabel} x2={visitBXLabel} fill="#6366f1" fillOpacity={0.06} />
+                    {showComparisonLines && compareAllVisits && visits.length >= 2 && (
+                      <IntervalArea x1={`${visits[0].gestationalAgeWeeks}w`} x2={`${visits[visits.length - 1].gestationalAgeWeeks}w`} fill="#6366f1" fillOpacity={0.03} />
                     )}
 
                     {/* Population Standard & Observed Curves */}
@@ -742,26 +921,46 @@ export const GrowthChartVisualization: React.FC<GrowthChartVisualizationProps> =
                     <Tooltip content={<CustomTooltip />} />
 
                     {/* Comparison Lines */}
-                    {showComparisonLines && visitAXLabel && (
-                      <ReferenceLine
-                        x={visitAXLabel}
-                        stroke="#6366f1"
-                        strokeWidth={1.5}
-                        strokeDasharray="3 3"
-                        label={{ value: 'A', fill: '#6366f1', fontSize: 9, position: 'top' }}
-                      />
+                    {showComparisonLines && (
+                      compareAllVisits ? (
+                        visits.map((v, i) => (
+                          <ReferenceLine
+                            key={`ref-all-afi-${v.id}`}
+                            x={`${v.gestationalAgeWeeks}w`}
+                            stroke={['#6366f1', '#0d9488', '#f59e0b', '#8b5cf6', '#ec4899'][i % 5]}
+                            strokeWidth={1.5}
+                            strokeDasharray="3 3"
+                            label={{ value: `V${v.visitNumber}`, fill: ['#6366f1', '#0d9488', '#f59e0b', '#8b5cf6', '#ec4899'][i % 5], fontSize: 9, position: 'top' }}
+                          />
+                        ))
+                      ) : (
+                        <>
+                          {visitAXLabel && (
+                            <ReferenceLine
+                              x={visitAXLabel}
+                              stroke="#6366f1"
+                              strokeWidth={1.5}
+                              strokeDasharray="3 3"
+                              label={{ value: 'A', fill: '#6366f1', fontSize: 9, position: 'top' }}
+                            />
+                          )}
+                          {visitBXLabel && (
+                            <ReferenceLine
+                              x={visitBXLabel}
+                              stroke="#0d9488"
+                              strokeWidth={1.5}
+                              strokeDasharray="3 3"
+                              label={{ value: 'B', fill: '#0d9488', fontSize: 9, position: 'top' }}
+                            />
+                          )}
+                          {visitAXLabel && visitBXLabel && (
+                            <IntervalArea x1={visitAXLabel} x2={visitBXLabel} fill="#6366f1" fillOpacity={0.06} />
+                          )}
+                        </>
+                      )
                     )}
-                    {showComparisonLines && visitBXLabel && (
-                      <ReferenceLine
-                        x={visitBXLabel}
-                        stroke="#0d9488"
-                        strokeWidth={1.5}
-                        strokeDasharray="3 3"
-                        label={{ value: 'B', fill: '#0d9488', fontSize: 9, position: 'top' }}
-                      />
-                    )}
-                    {showComparisonLines && visitAXLabel && visitBXLabel && (
-                      <IntervalArea x1={visitAXLabel} x2={visitBXLabel} fill="#6366f1" fillOpacity={0.06} />
+                    {showComparisonLines && compareAllVisits && visits.length >= 2 && (
+                      <IntervalArea x1={`${visits[0].gestationalAgeWeeks}w`} x2={`${visits[visits.length - 1].gestationalAgeWeeks}w`} fill="#f59e0b" fillOpacity={0.03} />
                     )}
 
                     {/* Thresholds */}
@@ -839,26 +1038,46 @@ export const GrowthChartVisualization: React.FC<GrowthChartVisualizationProps> =
                     <Tooltip content={<CustomTooltip />} />
 
                     {/* Comparison Lines */}
-                    {showComparisonLines && visitAXLabel && (
-                      <ReferenceLine
-                        x={visitAXLabel}
-                        stroke="#6366f1"
-                        strokeWidth={1.5}
-                        strokeDasharray="3 3"
-                        label={{ value: 'A', fill: '#6366f1', fontSize: 9, position: 'top' }}
-                      />
+                    {showComparisonLines && (
+                      compareAllVisits ? (
+                        visits.map((v, i) => (
+                          <ReferenceLine
+                            key={`ref-all-pct-${v.id}`}
+                            x={`${v.gestationalAgeWeeks}w`}
+                            stroke={['#6366f1', '#0d9488', '#f59e0b', '#8b5cf6', '#ec4899'][i % 5]}
+                            strokeWidth={1.5}
+                            strokeDasharray="3 3"
+                            label={{ value: `V${v.visitNumber}`, fill: ['#6366f1', '#0d9488', '#f59e0b', '#8b5cf6', '#ec4899'][i % 5], fontSize: 9, position: 'top' }}
+                          />
+                        ))
+                      ) : (
+                        <>
+                          {visitAXLabel && (
+                            <ReferenceLine
+                              x={visitAXLabel}
+                              stroke="#6366f1"
+                              strokeWidth={1.5}
+                              strokeDasharray="3 3"
+                              label={{ value: 'A', fill: '#6366f1', fontSize: 9, position: 'top' }}
+                            />
+                          )}
+                          {visitBXLabel && (
+                            <ReferenceLine
+                              x={visitBXLabel}
+                              stroke="#0d9488"
+                              strokeWidth={1.5}
+                              strokeDasharray="3 3"
+                              label={{ value: 'B', fill: '#0d9488', fontSize: 9, position: 'top' }}
+                            />
+                          )}
+                          {visitAXLabel && visitBXLabel && (
+                            <IntervalArea x1={visitAXLabel} x2={visitBXLabel} fill="#6366f1" fillOpacity={0.06} />
+                          )}
+                        </>
+                      )
                     )}
-                    {showComparisonLines && visitBXLabel && (
-                      <ReferenceLine
-                        x={visitBXLabel}
-                        stroke="#0d9488"
-                        strokeWidth={1.5}
-                        strokeDasharray="3 3"
-                        label={{ value: 'B', fill: '#0d9488', fontSize: 9, position: 'top' }}
-                      />
-                    )}
-                    {showComparisonLines && visitAXLabel && visitBXLabel && (
-                      <IntervalArea x1={visitAXLabel} x2={visitBXLabel} fill="#6366f1" fillOpacity={0.06} />
+                    {showComparisonLines && compareAllVisits && visits.length >= 2 && (
+                      <IntervalArea x1={`${visits[0].gestationalAgeWeeks}w`} x2={`${visits[visits.length - 1].gestationalAgeWeeks}w`} fill="#8b5cf6" fillOpacity={0.03} />
                     )}
 
                     {/* Cutoffs */}
@@ -960,49 +1179,80 @@ export const GrowthChartVisualization: React.FC<GrowthChartVisualizationProps> =
                   )}
 
                   {/* Inter-Visit Comparison Reference Lines */}
-                  {showComparisonLines && visitAXLabel && (
-                    <ReferenceLine
-                      x={visitAXLabel}
-                      stroke="#6366f1"
-                      strokeWidth={2}
-                      strokeDasharray="4 4"
-                      label={{
-                        value: `Visit A (${visitA?.gestationalAgeWeeks}w: ${visitA?.estimatedFetalWeight_g}g)`,
-                        fill: '#4f46e5',
-                        fontSize: 10,
-                        fontWeight: 700,
-                        position: 'top'
-                      }}
-                    />
+                  {showComparisonLines && (
+                    compareAllVisits ? (
+                      visits.map((v, i) => (
+                        <ReferenceLine
+                          key={`ref-all-efw-deep-${v.id}`}
+                          x={`${v.gestationalAgeWeeks}w`}
+                          stroke={['#4f46e5', '#0f766e', '#b45309', '#6d28d9', '#db2777'][i % 5]}
+                          strokeWidth={2}
+                          strokeDasharray="4 4"
+                          label={{
+                            value: `V${v.visitNumber} (${v.gestationalAgeWeeks}w: ${v.estimatedFetalWeight_g}g)`,
+                            fill: ['#4f46e5', '#0f766e', '#b45309', '#6d28d9', '#db2777'][i % 5],
+                            fontSize: 10,
+                            fontWeight: 700,
+                            position: 'top'
+                          }}
+                        />
+                      ))
+                    ) : (
+                      <>
+                        {visitAXLabel && (
+                          <ReferenceLine
+                            x={visitAXLabel}
+                            stroke="#6366f1"
+                            strokeWidth={2}
+                            strokeDasharray="4 4"
+                            label={{
+                              value: `Visit A (${visitA?.gestationalAgeWeeks}w: ${visitA?.estimatedFetalWeight_g}g)`,
+                              fill: '#4f46e5',
+                              fontSize: 10,
+                              fontWeight: 700,
+                              position: 'top'
+                            }}
+                          />
+                        )}
+                        {visitBXLabel && (
+                          <ReferenceLine
+                            x={visitBXLabel}
+                            stroke="#0d9488"
+                            strokeWidth={2}
+                            strokeDasharray="4 4"
+                            label={{
+                              value: `Visit B (${visitB?.gestationalAgeWeeks}w: ${visitB?.estimatedFetalWeight_g}g)`,
+                              fill: '#0f766e',
+                              fontSize: 10,
+                              fontWeight: 700,
+                              position: 'top'
+                            }}
+                          />
+                        )}
+                        {visitAXLabel && visitBXLabel && (
+                          <IntervalArea
+                            x1={visitAXLabel}
+                            x2={visitBXLabel}
+                            fill="#6366f1"
+                            fillOpacity={0.08}
+                            label={{
+                              value: comparisonData ? `Δ +${comparisonData.efwDelta}g (${comparisonData.weeksPassed}w)` : '',
+                              fill: '#4f46e5',
+                              fontSize: 11,
+                              position: 'center',
+                              fontWeight: 700
+                            }}
+                          />
+                        )}
+                      </>
+                    )
                   )}
-                  {showComparisonLines && visitBXLabel && (
-                    <ReferenceLine
-                      x={visitBXLabel}
-                      stroke="#0d9488"
-                      strokeWidth={2}
-                      strokeDasharray="4 4"
-                      label={{
-                        value: `Visit B (${visitB?.gestationalAgeWeeks}w: ${visitB?.estimatedFetalWeight_g}g)`,
-                        fill: '#0f766e',
-                        fontSize: 10,
-                        fontWeight: 700,
-                        position: 'top'
-                      }}
-                    />
-                  )}
-                  {showComparisonLines && visitAXLabel && visitBXLabel && (
+                  {showComparisonLines && compareAllVisits && visits.length >= 2 && (
                     <IntervalArea
-                      x1={visitAXLabel}
-                      x2={visitBXLabel}
+                      x1={`${visits[0].gestationalAgeWeeks}w`}
+                      x2={`${visits[visits.length - 1].gestationalAgeWeeks}w`}
                       fill="#6366f1"
-                      fillOpacity={0.08}
-                      label={{
-                        value: comparisonData ? `Δ +${comparisonData.efwDelta}g (${comparisonData.weeksPassed}w)` : '',
-                        fill: '#4f46e5',
-                        fontSize: 11,
-                        position: 'center',
-                        fontWeight: 700
-                      }}
+                      fillOpacity={0.03}
                     />
                   )}
 
@@ -1136,49 +1386,80 @@ export const GrowthChartVisualization: React.FC<GrowthChartVisualizationProps> =
                   />
 
                   {/* Inter-Visit Comparison Reference Lines */}
-                  {showComparisonLines && visitAXLabel && (
-                    <ReferenceLine
-                      x={visitAXLabel}
-                      stroke="#6366f1"
-                      strokeWidth={2}
-                      strokeDasharray="4 4"
-                      label={{
-                        value: `Visit A (${visitA?.gestationalAgeWeeks}w: ${visitA?.amnioticFluidIndex_cm}cm)`,
-                        fill: '#4f46e5',
-                        fontSize: 10,
-                        fontWeight: 700,
-                        position: 'top'
-                      }}
-                    />
+                  {showComparisonLines && (
+                    compareAllVisits ? (
+                      visits.map((v, i) => (
+                        <ReferenceLine
+                          key={`ref-all-afi-deep-${v.id}`}
+                          x={`${v.gestationalAgeWeeks}w`}
+                          stroke={['#4f46e5', '#0f766e', '#b45309', '#6d28d9', '#db2777'][i % 5]}
+                          strokeWidth={2}
+                          strokeDasharray="4 4"
+                          label={{
+                            value: `V${v.visitNumber} (${v.gestationalAgeWeeks}w: ${v.amnioticFluidIndex_cm}cm)`,
+                            fill: ['#4f46e5', '#0f766e', '#b45309', '#6d28d9', '#db2777'][i % 5],
+                            fontSize: 10,
+                            fontWeight: 700,
+                            position: 'top'
+                          }}
+                        />
+                      ))
+                    ) : (
+                      <>
+                        {visitAXLabel && (
+                          <ReferenceLine
+                            x={visitAXLabel}
+                            stroke="#6366f1"
+                            strokeWidth={2}
+                            strokeDasharray="4 4"
+                            label={{
+                              value: `Visit A (${visitA?.gestationalAgeWeeks}w: ${visitA?.amnioticFluidIndex_cm}cm)`,
+                              fill: '#4f46e5',
+                              fontSize: 10,
+                              fontWeight: 700,
+                              position: 'top'
+                            }}
+                          />
+                        )}
+                        {visitBXLabel && (
+                          <ReferenceLine
+                            x={visitBXLabel}
+                            stroke="#0d9488"
+                            strokeWidth={2}
+                            strokeDasharray="4 4"
+                            label={{
+                              value: `Visit B (${visitB?.gestationalAgeWeeks}w: ${visitB?.amnioticFluidIndex_cm}cm)`,
+                              fill: '#0f766e',
+                              fontSize: 10,
+                              fontWeight: 700,
+                              position: 'top'
+                            }}
+                          />
+                        )}
+                        {visitAXLabel && visitBXLabel && (
+                          <IntervalArea
+                            x1={visitAXLabel}
+                            x2={visitBXLabel}
+                            fill="#f59e0b"
+                            fillOpacity={0.08}
+                            label={{
+                              value: comparisonData ? `Δ ${comparisonData.afiDelta}cm (${comparisonData.afiVelocity} cm/wk)` : '',
+                              fill: '#b45309',
+                              fontSize: 11,
+                              position: 'center',
+                              fontWeight: 700
+                            }}
+                          />
+                        )}
+                      </>
+                    )
                   )}
-                  {showComparisonLines && visitBXLabel && (
-                    <ReferenceLine
-                      x={visitBXLabel}
-                      stroke="#0d9488"
-                      strokeWidth={2}
-                      strokeDasharray="4 4"
-                      label={{
-                        value: `Visit B (${visitB?.gestationalAgeWeeks}w: ${visitB?.amnioticFluidIndex_cm}cm)`,
-                        fill: '#0f766e',
-                        fontSize: 10,
-                        fontWeight: 700,
-                        position: 'top'
-                      }}
-                    />
-                  )}
-                  {showComparisonLines && visitAXLabel && visitBXLabel && (
+                  {showComparisonLines && compareAllVisits && visits.length >= 2 && (
                     <IntervalArea
-                      x1={visitAXLabel}
-                      x2={visitBXLabel}
+                      x1={`${visits[0].gestationalAgeWeeks}w`}
+                      x2={`${visits[visits.length - 1].gestationalAgeWeeks}w`}
                       fill="#f59e0b"
-                      fillOpacity={0.08}
-                      label={{
-                        value: comparisonData ? `Δ ${comparisonData.afiDelta}cm (${comparisonData.afiVelocity} cm/wk)` : '',
-                        fill: '#b45309',
-                        fontSize: 11,
-                        position: 'center',
-                        fontWeight: 700
-                      }}
+                      fillOpacity={0.03}
                     />
                   )}
 
@@ -1281,49 +1562,80 @@ export const GrowthChartVisualization: React.FC<GrowthChartVisualizationProps> =
                   />
 
                   {/* Inter-Visit Comparison Reference Lines */}
-                  {showComparisonLines && visitAXLabel && (
-                    <ReferenceLine
-                      x={visitAXLabel}
-                      stroke="#6366f1"
-                      strokeWidth={2}
-                      strokeDasharray="4 4"
-                      label={{
-                        value: `Visit A (${visitA?.gestationalAgeWeeks}w: ${visitA?.growthPercentile}th %ile)`,
-                        fill: '#4f46e5',
-                        fontSize: 10,
-                        fontWeight: 700,
-                        position: 'top'
-                      }}
-                    />
+                  {showComparisonLines && (
+                    compareAllVisits ? (
+                      visits.map((v, i) => (
+                        <ReferenceLine
+                          key={`ref-all-pct-deep-${v.id}`}
+                          x={`${v.gestationalAgeWeeks}w`}
+                          stroke={['#4f46e5', '#0f766e', '#b45309', '#6d28d9', '#db2777'][i % 5]}
+                          strokeWidth={2}
+                          strokeDasharray="4 4"
+                          label={{
+                            value: `V${v.visitNumber} (${v.gestationalAgeWeeks}w: ${v.growthPercentile}th %ile)`,
+                            fill: ['#4f46e5', '#0f766e', '#b45309', '#6d28d9', '#db2777'][i % 5],
+                            fontSize: 10,
+                            fontWeight: 700,
+                            position: 'top'
+                          }}
+                        />
+                      ))
+                    ) : (
+                      <>
+                        {visitAXLabel && (
+                          <ReferenceLine
+                            x={visitAXLabel}
+                            stroke="#6366f1"
+                            strokeWidth={2}
+                            strokeDasharray="4 4"
+                            label={{
+                              value: `Visit A (${visitA?.gestationalAgeWeeks}w: ${visitA?.growthPercentile}th %ile)`,
+                              fill: '#4f46e5',
+                              fontSize: 10,
+                              fontWeight: 700,
+                              position: 'top'
+                            }}
+                          />
+                        )}
+                        {visitBXLabel && (
+                          <ReferenceLine
+                            x={visitBXLabel}
+                            stroke="#0d9488"
+                            strokeWidth={2}
+                            strokeDasharray="4 4"
+                            label={{
+                              value: `Visit B (${visitB?.gestationalAgeWeeks}w: ${visitB?.growthPercentile}th %ile)`,
+                              fill: '#0f766e',
+                              fontSize: 10,
+                              fontWeight: 700,
+                              position: 'top'
+                            }}
+                          />
+                        )}
+                        {visitAXLabel && visitBXLabel && (
+                          <IntervalArea
+                            x1={visitAXLabel}
+                            x2={visitBXLabel}
+                            fill="#8b5cf6"
+                            fillOpacity={0.08}
+                            label={{
+                              value: comparisonData ? `Δ ${comparisonData.pctDelta} %ile (${comparisonData.pctVelocity} %ile/wk)` : '',
+                              fill: '#6d28d9',
+                              fontSize: 11,
+                              position: 'center',
+                              fontWeight: 700
+                            }}
+                          />
+                        )}
+                      </>
+                    )
                   )}
-                  {showComparisonLines && visitBXLabel && (
-                    <ReferenceLine
-                      x={visitBXLabel}
-                      stroke="#0d9488"
-                      strokeWidth={2}
-                      strokeDasharray="4 4"
-                      label={{
-                        value: `Visit B (${visitB?.gestationalAgeWeeks}w: ${visitB?.growthPercentile}th %ile)`,
-                        fill: '#0f766e',
-                        fontSize: 10,
-                        fontWeight: 700,
-                        position: 'top'
-                      }}
-                    />
-                  )}
-                  {showComparisonLines && visitAXLabel && visitBXLabel && (
+                  {showComparisonLines && compareAllVisits && visits.length >= 2 && (
                     <IntervalArea
-                      x1={visitAXLabel}
-                      x2={visitBXLabel}
+                      x1={`${visits[0].gestationalAgeWeeks}w`}
+                      x2={`${visits[visits.length - 1].gestationalAgeWeeks}w`}
                       fill="#8b5cf6"
-                      fillOpacity={0.08}
-                      label={{
-                        value: comparisonData ? `Δ ${comparisonData.pctDelta} %ile (${comparisonData.pctVelocity} %ile/wk)` : '',
-                        fill: '#6d28d9',
-                        fontSize: 11,
-                        position: 'center',
-                        fontWeight: 700
-                      }}
+                      fillOpacity={0.03}
                     />
                   )}
 
