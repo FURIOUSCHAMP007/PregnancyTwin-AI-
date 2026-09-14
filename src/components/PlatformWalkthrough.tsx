@@ -26,7 +26,6 @@ import {
   Minimize2,
   BookOpen,
   Info,
-  CheckCircle2,
   ArrowRight,
   Stethoscope,
   Clock,
@@ -39,7 +38,7 @@ import {
 import { AppTab } from './AppNavigation';
 import { TwinSubPage } from './PregnancyTwinView';
 
-export type TourMode = 'FULL' | 'TRIAGE' | 'SIMULATION';
+export type TourMode = 'CLINICAL' | 'AI_SENSITIVITY' | 'EMERGENCY' | 'FULL';
 
 export interface TourStepDefinition {
   id: string;
@@ -61,6 +60,12 @@ export interface TourStepDefinition {
   interactiveAction?: () => void;
   modes: TourMode[];
   badgeColor: string;
+  contextCues?: {
+    CLINICAL?: string;
+    AI_SENSITIVITY?: string;
+    EMERGENCY?: string;
+    FULL?: string;
+  };
 }
 
 interface PlatformWalkthroughProps {
@@ -123,7 +128,7 @@ export const PlatformWalkthrough: React.FC<PlatformWalkthroughProps> = ({
   const [spotlightDimmer, setSpotlightDimmer] = useState<boolean>(false);
   const [dockPosition, setDockPosition] = useState<'bottom-right' | 'bottom-left'>('bottom-right');
 
-  // Master definition of all 9 clinical tour steps
+  // Master definition of all 9 clinical tour steps mapped to Clinical Core, Sensitivity Studio, and Emergency Response
   const allTourSteps: TourStepDefinition[] = [
     {
       id: 'step-dashboard',
@@ -145,8 +150,13 @@ export const PlatformWalkthrough: React.FC<PlatformWalkthroughProps> = ({
         onNavigateTab('home');
         showToast('Viewing Central Clinical Dashboard with high-risk priority queue.');
       },
-      modes: ['FULL', 'TRIAGE'],
-      badgeColor: 'bg-teal-500/10 text-teal-300 border-teal-500/30'
+      modes: ['FULL', 'CLINICAL', 'EMERGENCY'],
+      badgeColor: 'bg-teal-500/10 text-teal-300 border-teal-500/30',
+      contextCues: {
+        CLINICAL: '🩺 [Patient Monitoring Mode] Focus on the risk sorting queue. Notice how the velocity column highlights patients needing urgent scan schedules.',
+        EMERGENCY: '🚨 [Alert Investigation Mode] Locate Amina Al-Mansoor flagged under "High Risk" due to acute trajectory decay. Prepare to open her twin.',
+        FULL: '💡 [Comprehensive Tour Mode] This is your central dashboard. Start here to triage your overall patient list.'
+      }
     },
     {
       id: 'step-digital-twin',
@@ -170,15 +180,22 @@ export const PlatformWalkthrough: React.FC<PlatformWalkthroughProps> = ({
         onSelectPatient('pat-001');
         showToast('Switched to Patient A (Elena Rostova): Demonstrating normal longitudinal concordance.');
       },
-      modes: ['FULL', 'TRIAGE', 'SIMULATION'],
-      badgeColor: 'bg-rose-500/10 text-rose-300 border-rose-500/30'
+      modes: ['FULL', 'CLINICAL', 'AI_SENSITIVITY', 'EMERGENCY'],
+      badgeColor: 'bg-rose-500/10 text-rose-300 border-rose-500/30',
+      contextCues: {
+        CLINICAL: '🩺 [Patient Monitoring Mode] Compare Amina\'s static EFW (currently 8th percentile) against her prior trajectory (45th percentile). This is severe deceleration.',
+        AI_SENSITIVITY: '🧪 [Sensitivity Studio Mode] Observe how the Hadlock percentile curves bend downward. This acts as the baseline for counterfactual simulations.',
+        EMERGENCY: '🚨 [Alert Investigation Mode] Inspect the red alert badge. The severe dip in both SDP and EFW velocity indicates a state of immediate placental insufficiency.',
+        FULL: '💡 [Comprehensive Tour Mode] The Pregnancy Digital Twin consolidates multi-visit sonographic parameters into a single continuous visualization.'
+      }
     },
     {
       id: 'step-medications',
       stepNumber: 3,
       title: 'Maternal Pharmacotherapy & Exposure Timeline',
       category: 'Medication Analytics',
-      tab: 'medications',
+      tab: 'clinical',
+      subPage: 'medications',
       patientId: 'pat-002',
       icon: Pill,
       description:
@@ -191,11 +208,16 @@ export const PlatformWalkthrough: React.FC<PlatformWalkthroughProps> = ({
       keyTags: ['Weeks 12-40 Timeline', 'Dose Intensity Chips', 'Pinned Regimen Inspector'],
       interactiveActionLabel: 'Inspect Active Regimens',
       interactiveAction: () => {
-        onNavigateTab('medications');
+        onNavigateTab('clinical');
+        if (onSetTwinSubPage) onSetTwinSubPage('medications');
         showToast('Viewing Multi-Regimen Timeline for Amina Al-Mansoor.');
       },
-      modes: ['FULL'],
-      badgeColor: 'bg-purple-500/10 text-purple-300 border-purple-500/30'
+      modes: ['FULL', 'CLINICAL'],
+      badgeColor: 'bg-purple-500/10 text-purple-300 border-purple-500/30',
+      contextCues: {
+        CLINICAL: '🩺 [Patient Monitoring Mode] Review the exposure timing of Betamethasone. Ensure administration aligns with optimal gestational weeks for fetal lung maturity.',
+        FULL: '💡 [Comprehensive Tour Mode] Track exact medication onset, dose adjustments, and overlap intervals alongside biometric progress.'
+      }
     },
     {
       id: 'step-simulation',
@@ -220,8 +242,12 @@ export const PlatformWalkthrough: React.FC<PlatformWalkthroughProps> = ({
         if (onSetTwinSubPage) onSetTwinSubPage('analytics');
         showToast('Navigated to What-If Intervention Simulator.');
       },
-      modes: ['FULL', 'SIMULATION'],
-      badgeColor: 'bg-amber-500/10 text-amber-300 border-amber-500/30'
+      modes: ['FULL', 'AI_SENSITIVITY'],
+      badgeColor: 'bg-amber-500/10 text-amber-300 border-amber-500/30',
+      contextCues: {
+        AI_SENSITIVITY: '🧪 [Sensitivity Studio Mode] Use the sliders below to simulate a hypothetical 24-week intervention. Observe the projected improvement in Hadlock percentile growth trajectory.',
+        FULL: '💡 [Comprehensive Tour Mode] The counterfactual simulator uses SHAP methodologies to forecast the effect of clinical timing on fetal outcome.'
+      }
     },
     {
       id: 'step-association',
@@ -246,8 +272,12 @@ export const PlatformWalkthrough: React.FC<PlatformWalkthroughProps> = ({
         if (onSetTwinSubPage) onSetTwinSubPage('analytics');
         showToast('Viewing D3 Multi-Biometric Association Analysis.');
       },
-      modes: ['FULL', 'SIMULATION'],
-      badgeColor: 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30'
+      modes: ['FULL', 'AI_SENSITIVITY'],
+      badgeColor: 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30',
+      contextCues: {
+        AI_SENSITIVITY: '🧪 [Sensitivity Studio Mode] Examine the D3 scatter plot. Notice the direct positive correlation between estimated fetal weight and amniotic fluid volume shifts.',
+        FULL: '💡 [Comprehensive Tour Mode] Analyze linear relationships and regression lines across all biometric measurements with Pearson correlations.'
+      }
     },
     {
       id: 'step-live-input',
@@ -269,8 +299,12 @@ export const PlatformWalkthrough: React.FC<PlatformWalkthroughProps> = ({
         onOpenUpload();
         showToast('Opened Ultrasound Scan Ingestion Modal.');
       },
-      modes: ['FULL'],
-      badgeColor: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
+      modes: ['FULL', 'CLINICAL'],
+      badgeColor: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30',
+      contextCues: {
+        CLINICAL: '🩺 [Patient Monitoring Mode] Click "Open Ultrasound" to see how raw sonographic biometry automatically updates formulas without manual transcribing.',
+        FULL: '💡 [Comprehensive Tour Mode] Enter new biometric metrics or upload scans to append new coordinates onto the patient trajectory curve instantly.'
+      }
     },
     {
       id: 'step-analytics',
@@ -293,8 +327,12 @@ export const PlatformWalkthrough: React.FC<PlatformWalkthroughProps> = ({
         onNavigateTab('analytics');
         showToast('Switched to Population Growth Trajectory Analytics.');
       },
-      modes: ['FULL'],
-      badgeColor: 'bg-blue-500/10 text-blue-300 border-blue-500/30'
+      modes: ['FULL', 'AI_SENSITIVITY'],
+      badgeColor: 'bg-blue-500/10 text-blue-300 border-blue-500/30',
+      contextCues: {
+        AI_SENSITIVITY: '🧪 [Sensitivity Studio Mode] Benchmark individual patient velocities against the broader WHO/Hadlock cohort population curves.',
+        FULL: '💡 [Comprehensive Tour Mode] View population percentiles to evaluate how this patient matches regional or institutional distributions.'
+      }
     },
     {
       id: 'step-copilot',
@@ -318,8 +356,12 @@ export const PlatformWalkthrough: React.FC<PlatformWalkthroughProps> = ({
         onOpenCopilot();
         showToast('Opened AI Clinical Copilot Decision Support Drawer.');
       },
-      modes: ['FULL', 'TRIAGE'],
-      badgeColor: 'bg-indigo-500/10 text-indigo-300 border-indigo-500/30'
+      modes: ['FULL', 'EMERGENCY'],
+      badgeColor: 'bg-indigo-500/10 text-indigo-300 border-indigo-500/30',
+      contextCues: {
+        EMERGENCY: '🚨 [Alert Investigation Mode] Click the Copilot button. Query Gemini for clinical protocols regarding imminent delivery timing for late-onset FGR.',
+        FULL: '💡 [Comprehensive Tour Mode] Use the conversational side drawer to query peer-reviewed obstetrics guidelines customized to this digital twin.'
+      }
     },
     {
       id: 'step-security',
@@ -342,8 +384,12 @@ export const PlatformWalkthrough: React.FC<PlatformWalkthroughProps> = ({
         onNavigateTab('admin');
         showToast('Viewing Security Posture & HIPAA Governance Audit Log.');
       },
-      modes: ['FULL'],
-      badgeColor: 'bg-amber-500/10 text-amber-300 border-amber-500/30'
+      modes: ['FULL', 'EMERGENCY'],
+      badgeColor: 'bg-amber-500/10 text-amber-300 border-amber-500/30',
+      contextCues: {
+        EMERGENCY: '🚨 [Alert Investigation Mode] Verify that all escalated clinical decisions are recorded in the immutable audit trail for full compliance.',
+        FULL: '💡 [Comprehensive Tour Mode] Monitor real-time cipher suites, API token authentications, and the active database session status log.'
+      }
     }
   ];
 
@@ -406,7 +452,13 @@ export const PlatformWalkthrough: React.FC<PlatformWalkthroughProps> = ({
     if (newSteps.length > 0) {
       applyStepNavigation(newSteps[0]);
     }
-    showToast(`Switched to ${mode === 'FULL' ? 'Comprehensive Tour' : mode === 'TRIAGE' ? 'Triage Focus' : 'Simulation Focus'} track.`);
+    const trackNames = {
+      CLINICAL: 'Clinical Core (Patient Monitoring)',
+      AI_SENSITIVITY: 'AI Sensitivity Studio (Analytics & Modeling)',
+      EMERGENCY: 'Emergency Response (Alert Investigation)',
+      FULL: 'Comprehensive Tour'
+    };
+    showToast(`Switched to ${trackNames[mode]} track.`);
   };
 
   // Keyboard navigation support
@@ -614,38 +666,53 @@ export const PlatformWalkthrough: React.FC<PlatformWalkthroughProps> = ({
           </div>
 
           {/* Tour Track Selector Tabs */}
-          <div className="px-4 py-1.5 bg-slate-900/90 border-b border-slate-800/80 flex items-center justify-between text-[11px]">
-            <span className="text-slate-400 font-medium">Tour Track:</span>
-            <div className="flex items-center space-x-1 bg-slate-950 p-0.5 rounded-lg border border-slate-800">
+          <div className="px-4 py-2 bg-slate-950/40 border-b border-slate-800/80 flex flex-col gap-1.5 text-[11px] shrink-0">
+            <div className="flex items-center justify-between">
+              <span className="text-slate-400 font-bold uppercase tracking-wider text-[9px]">Tour Track Selection</span>
+              <span className="text-[10px] text-teal-450 font-mono font-bold bg-teal-950/40 px-1.5 py-0.2 rounded border border-teal-800">
+                {selectedMode === 'FULL' ? 'Comprehensive' : selectedMode === 'CLINICAL' ? 'Clinical Core' : selectedMode === 'AI_SENSITIVITY' ? 'AI Sensitivity Studio' : 'Emergency Response'}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-1 bg-slate-950 p-0.5 rounded-lg border border-slate-800">
               <button
                 onClick={() => handleModeChange('FULL')}
-                className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors ${
+                className={`px-2 py-1 rounded-md text-[10px] font-bold transition-all text-center cursor-pointer ${
                   selectedMode === 'FULL'
                     ? 'bg-teal-600 text-white shadow-xs'
-                    : 'text-slate-400 hover:text-slate-200'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
                 }`}
               >
                 Comprehensive (9)
               </button>
               <button
-                onClick={() => handleModeChange('TRIAGE')}
-                className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors ${
-                  selectedMode === 'TRIAGE'
+                onClick={() => handleModeChange('CLINICAL')}
+                className={`px-2 py-1 rounded-md text-[10px] font-bold transition-all text-center cursor-pointer ${
+                  selectedMode === 'CLINICAL'
                     ? 'bg-teal-600 text-white shadow-xs'
-                    : 'text-slate-400 hover:text-slate-200'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
                 }`}
               >
-                Triage (4)
+                Clinical Core (4)
               </button>
               <button
-                onClick={() => handleModeChange('SIMULATION')}
-                className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors ${
-                  selectedMode === 'SIMULATION'
+                onClick={() => handleModeChange('AI_SENSITIVITY')}
+                className={`px-2 py-1 rounded-md text-[10px] font-bold transition-all text-center cursor-pointer ${
+                  selectedMode === 'AI_SENSITIVITY'
                     ? 'bg-teal-600 text-white shadow-xs'
-                    : 'text-slate-400 hover:text-slate-200'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
                 }`}
               >
-                Simulation (3)
+                Sensitivity Studio (4)
+              </button>
+              <button
+                onClick={() => handleModeChange('EMERGENCY')}
+                className={`px-2 py-1 rounded-md text-[10px] font-bold transition-all text-center cursor-pointer ${
+                  selectedMode === 'EMERGENCY'
+                    ? 'bg-teal-600 text-white shadow-xs'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/60'
+                }`}
+              >
+                Emergency Response (4)
               </button>
             </div>
           </div>
@@ -664,6 +731,21 @@ export const PlatformWalkthrough: React.FC<PlatformWalkthroughProps> = ({
                 {currentStep.description}
               </p>
             </div>
+
+            {/* Dynamic Context-Specific Navigation Cue */}
+            {currentStep.contextCues && (
+              <div className={`p-2.5 rounded-xl border text-[10.5px] leading-relaxed font-semibold transition-all ${
+                selectedMode === 'CLINICAL' 
+                  ? 'bg-teal-950/30 border-teal-500/25 text-teal-200'
+                  : selectedMode === 'AI_SENSITIVITY'
+                  ? 'bg-amber-950/20 border-amber-500/20 text-amber-200'
+                  : selectedMode === 'EMERGENCY'
+                  ? 'bg-rose-950/35 border-rose-500/25 text-rose-200'
+                  : 'bg-slate-950/50 border-slate-800 text-slate-300'
+              }`}>
+                {currentStep.contextCues[selectedMode] || currentStep.contextCues.FULL || currentStep.description}
+              </div>
+            )}
 
             {/* Feature Highlight Pills */}
             <div className="flex flex-wrap gap-1.5 pt-0.5">
@@ -730,8 +812,8 @@ export const PlatformWalkthrough: React.FC<PlatformWalkthroughProps> = ({
           </div>
 
           {/* Clickable Step Progression Breadcrumbs */}
-          <div className="px-4 py-2 bg-slate-950/90 border-t border-slate-800/80 flex items-center justify-between">
-            <div className="flex items-center space-x-1 overflow-x-auto py-0.5 max-w-[280px]">
+          <div className="px-4 py-2.5 bg-slate-950/90 border-t border-slate-800/80 flex items-center justify-between">
+            <div className="flex items-center space-x-1.5 py-0.5 shrink-0 max-w-[300px] overflow-x-hidden">
               {currentSteps.map((step, idx) => {
                 const isActive = idx === currentStepIndex;
                 const isPast = idx < currentStepIndex;
@@ -739,16 +821,16 @@ export const PlatformWalkthrough: React.FC<PlatformWalkthroughProps> = ({
                   <button
                     key={step.id}
                     onClick={() => handleJumpToStep(idx)}
-                    className={`w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center transition-all cursor-pointer ${
+                    className={`w-5 h-5 rounded-full text-[10px] font-black flex items-center justify-center transition-all cursor-pointer shrink-0 ${
                       isActive
-                        ? 'bg-teal-500 text-slate-950 ring-2 ring-teal-300 scale-110'
+                        ? 'bg-teal-400 text-slate-950 ring-2 ring-teal-300 scale-105 shadow-xs'
                         : isPast
-                        ? 'bg-teal-950 text-teal-400 border border-teal-700/60 hover:bg-teal-900'
+                        ? 'bg-teal-950/40 text-teal-400 border border-teal-500/30 hover:bg-teal-900/40'
                         : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
                     }`}
                     title={`${idx + 1}. ${step.title}`}
                   >
-                    {isPast ? <CheckCircle2 className="w-3 h-3" /> : idx + 1}
+                    {isPast ? '✓' : idx + 1}
                   </button>
                 );
               })}

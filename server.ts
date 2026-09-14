@@ -176,14 +176,17 @@ syntheticPatientsData.forEach((sp: any) => {
 });
 
 // In-Memory persistent data store (backed by Firestore schemas)
-let patients: Patient[] = [
-  ...JSON.parse(JSON.stringify(INITIAL_PATIENTS)),
-  ...MAPPED_SYNTHETIC_PATIENTS
-];
-let visitsMap: Record<string, VisitMeasurement[]> = {
-  ...JSON.parse(JSON.stringify(INITIAL_VISITS)),
-  ...MAPPED_SYNTHETIC_VISITS
-};
+// Sliced to exactly 5 preloaded cases for simulation as requested by the user
+let patients: Patient[] = JSON.parse(JSON.stringify(INITIAL_PATIENTS)).slice(0, 5);
+
+const preloadedVisits: Record<string, VisitMeasurement[]> = JSON.parse(JSON.stringify(INITIAL_VISITS));
+for (const patientId in preloadedVisits) {
+  preloadedVisits[patientId].forEach(v => {
+    v.isUserInputted = true;
+  });
+}
+
+let visitsMap: Record<string, VisitMeasurement[]> = preloadedVisits;
 let medications: MedicationExposure[] = [
   ...JSON.parse(JSON.stringify(INITIAL_MEDICATIONS))
 ];
@@ -194,7 +197,14 @@ let auditLogs: AuditLog[] = JSON.parse(JSON.stringify(INITIAL_AUDIT_LOGS));
 let geminiClient: GoogleGenAI | null = null;
 function getGemini(): GoogleGenAI | null {
   if (!geminiClient && process.env.GEMINI_API_KEY) {
-    geminiClient = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    geminiClient = new GoogleGenAI({
+      apiKey: process.env.GEMINI_API_KEY,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        }
+      }
+    });
   }
   return geminiClient;
 }
@@ -226,7 +236,7 @@ async function generateContentWithFallback(
   const modelsToTry = [
     options.preferredModel || 'gemini-3.8-flash',
     'gemini-flash-latest',
-    'gemini-3.1-pro-preview'
+    'gemini-3.1-flash-lite'
   ];
 
   const uniqueModels = Array.from(new Set(modelsToTry));
@@ -529,7 +539,8 @@ async function startServer() {
         sourceConfidence: 0.95,
         imageQualityScore: 0.94,
         doctorReviewStatus: 'accepted',
-        doctorNotes: 'Baseline scan recorded at registration.'
+        doctorNotes: 'Baseline scan recorded at registration.',
+        isUserInputted: true
       };
       visitsMap[newId] = [initialVisit];
       refreshPatientTrajectory(newId);
@@ -862,7 +873,8 @@ async function startServer() {
       sourceConfidence: Number(req.body.sourceConfidence) || 0.93,
       imageQualityScore: Number(req.body.imageQualityScore) || 0.90,
       doctorReviewStatus: 'pending',
-      doctorNotes: req.body.doctorNotes || 'Extracted via report upload. Awaiting clinician acceptance.'
+      doctorNotes: req.body.doctorNotes || 'Extracted via report upload. Awaiting clinician acceptance.',
+      isUserInputted: true
     };
 
     existingVisits.push(newVisit);
@@ -940,15 +952,15 @@ async function startServer() {
         const contents: any[] = [];
         
         if (imageBase64 && typeof imageBase64 === 'string') {
-          // Multimodal image support
-          const match = imageBase64.match(/^data:(image\/[a-zA-Z0-9.+_-]+);base64,(.+)$/);
+          // Multimodal image/PDF support
+          const match = imageBase64.match(/^data:((?:image|application)\/[a-zA-Z0-9.+_-]+);base64,(.+)$/);
           let mimeType = 'image/jpeg';
           let rawData = imageBase64;
           if (match) {
             mimeType = match[1];
             rawData = match[2];
           } else {
-            rawData = imageBase64.replace(/^data:image\/[a-z]+;base64,/, '');
+            rawData = imageBase64.replace(/^data:[a-z]+\/[a-z]+;base64,/, '');
           }
 
           const cleanBase64 = rawData.replace(/[\r\n\s]+/g, '');
@@ -1033,7 +1045,12 @@ ${reportText || 'Examine the attached ultrasound scan image for visible biometri
           extracted: parsed
         });
       } catch (err: any) {
-        console.warn('[PregnancyTwin] Report extraction switched to deterministic clinical parser:', err?.message || err);
+        const isQuota = String(err?.message || err).includes('429') || String(err?.message || err).includes('quota') || String(err?.message || err).includes('limit');
+        if (isQuota) {
+          console.warn('[PregnancyTwin] Report extraction switched to deterministic clinical parser: Gemini API rate limit or quota exceeded.');
+        } else {
+          console.warn('[PregnancyTwin] Report extraction switched to deterministic clinical parser: Gemini service temporarily unavailable.');
+        }
       }
     }
 
@@ -1507,6 +1524,7 @@ CRITICAL CLINICAL RULES:
 3. Use the provided tools (getPatientsWithDecreasingAFI, getPatientTrajectory, getTrajectoryForecast, explainTrajectoryAlert, comparePatientVisits, searchClinicalKnowledge, getPatientMedications) to retrieve live patient data whenever relevant.
 4. Enforce clinician scope: Doctors may only view their assigned patients.
 5. Be concise, professional, and highlight numerical deltas (e.g. AFI drop %, velocity in cm/wk).
+6. FORMATTING: Use standard Markdown tables (using | pipes) and clear lists (using - or •) for any patient datasets, comparisons, or summaries. Our interface parses and renders Markdown tables as highly polished, interactive HTML tables.
 ${currentPatientContext}`;
 
       // First call to check for tool calls
@@ -1617,7 +1635,12 @@ ${currentPatientContext}`;
         confidence: Math.floor(Math.random() * 4) + 89 // 89% - 92%
       });
     } catch (err: any) {
-      console.warn('[PregnancyTwin Copilot] Provider temporarily unavailable; using deterministic clinical assistant engine:', err?.message || err);
+      const isQuota = String(err?.message || err).includes('429') || String(err?.message || err).includes('quota') || String(err?.message || err).includes('limit');
+      if (isQuota) {
+        console.warn('[PregnancyTwin Copilot] Provider temporarily unavailable; using deterministic clinical assistant engine: Gemini API rate limit or quota exceeded.');
+      } else {
+        console.warn('[PregnancyTwin Copilot] Provider temporarily unavailable; using deterministic clinical assistant engine: Gemini service temporarily unavailable.');
+      }
       const fallback = generateOfflineCopilotReply(message, patientId, user);
       return res.json({
         ...fallback,

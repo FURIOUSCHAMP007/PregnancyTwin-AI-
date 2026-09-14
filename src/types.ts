@@ -96,6 +96,9 @@ export interface VisitMeasurement {
   reviewedBy?: string;
   reviewedAt?: string;
   doctorNotes?: string;
+  isUserInputted?: boolean;
+  emotionalState?: string;
+  bloodPressure?: string;
   
   // Algorithmic Kalman Filter outputs
   kalmanAfi?: number;

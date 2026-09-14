@@ -343,6 +343,12 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                     badge: 'XGBoost Active',
                   },
                   {
+                    id: 'medications' as TwinSubPage,
+                    label: 'Medications Hub',
+                    icon: Pill,
+                    badge: 'Active Regimens',
+                  },
+                  {
                     id: 'analytics' as TwinSubPage,
                     label: 'Modeling & Sensitivity',
                     icon: TrendingUp,

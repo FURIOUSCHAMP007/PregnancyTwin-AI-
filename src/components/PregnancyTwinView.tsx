@@ -38,22 +38,30 @@ import {
   Heart,
   ShieldCheck
 } from 'lucide-react';
-import { PregnancyDigitalTwin, VisitMeasurement, MedicationExposure } from '../types';
+import { PregnancyDigitalTwin, VisitMeasurement, MedicationExposure, User } from '../types';
 import { simulateCounterfactual } from '../utils/trajectoryEngine';
 import { GrowthChartVisualization } from './GrowthChartVisualization';
 import { ClinicalReportPrintModal } from './ClinicalReportPrintModal';
 import { MedicationExposurePanel } from './MedicationExposurePanel';
-import { MedicationImpactPanel } from './MedicationImpactPanel';
+import { MedicationsHub } from './MedicationsHub';
 import { LongitudinalDeliveryForecastPanel } from './LongitudinalDeliveryForecastPanel';
 import { TwinHemodynamicsTab } from './twin/TwinHemodynamicsTab';
 import { TwinGuidelinesTab } from './twin/TwinGuidelinesTab';
 import { TwinDeliveryPredictionTab } from './twin/TwinDeliveryPredictionTab';
+
+// Helper to get proper English ordinal suffixes for numeric values (e.g., 53rd, 50th)
+export function getOrdinal(n: number): string {
+  const s = ["th", "st", "nd", "rd"];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
 import { calculateBiometricZScore } from '../utils/clinicalCalculators';
 
-export type TwinSubPage = 'overview' | 'analytics' | 'records' | 'hemodynamics' | 'guidelines' | 'delivery';
+export type TwinSubPage = 'overview' | 'analytics' | 'records' | 'hemodynamics' | 'guidelines' | 'delivery' | 'medications';
 
 interface PregnancyTwinViewProps {
   twin: PregnancyDigitalTwin;
+  currentUser: User;
   onOpenUpload: () => void;
   onOpenCopilot: () => void;
   onOpenReviewMeasurement: (measurement: VisitMeasurement) => void;
@@ -66,6 +74,7 @@ interface PregnancyTwinViewProps {
 
 export const PregnancyTwinView: React.FC<PregnancyTwinViewProps> = ({
   twin,
+  currentUser,
   onOpenUpload,
   onOpenCopilot,
   onOpenReviewMeasurement,
@@ -164,7 +173,7 @@ export const PregnancyTwinView: React.FC<PregnancyTwinViewProps> = ({
     }
 
     if (percentileVelocity < -1.5) {
-      return `⚠️ GROWTH TRAJECTORY ACCELERATION FAILURE: Estimated Fetal Weight percentile fell from ${previousVisit.growthPercentile}th to ${selectedVisit.growthPercentile}th (velocity: ${percentileVelocity.toFixed(1)} %ile/wk). Although the current weight remains above the 10th percentile FGR threshold, the personal trajectory departure is highly significant. This suggests early-onset symmetrical or asymmetrical growth delay. Doppler tracking is indicated.`;
+      return `⚠️ GROWTH TRAJECTORY ACCELERATION FAILURE: Estimated Fetal Weight percentile fell from ${getOrdinal(previousVisit.growthPercentile)} to ${getOrdinal(selectedVisit.growthPercentile)} (velocity: ${percentileVelocity.toFixed(1)} %ile/wk). Although the current weight remains above the 10th percentile FGR threshold, the personal trajectory departure is highly significant. This suggests early-onset symmetrical or asymmetrical growth delay. Doppler tracking is indicated.`;
     }
 
     return `✓ REASSURING CONCORDANT TRAJECTORY: Growth and fluid values are tracking parallel to her personal baseline (Growth velocity: +${efwVelocity.toFixed(1)}g/wk, fluid volume stable). This patient remains on a healthy developmental pathway matching her historical trend. Maintain standard clinical surveillance intervals.`;
@@ -258,8 +267,9 @@ export const PregnancyTwinView: React.FC<PregnancyTwinViewProps> = ({
   const counterfactualResult = simulateCounterfactual(visits, hypoAfi, hypoGrowth);
 
   const filteredVisits = visits.filter((v) => {
+    if (!v.isUserInputted) return false;
     if (recordsFilter === 'accepted') return v.doctorReviewStatus === 'accepted';
-    if (recordsFilter === 'pending') return v.doctorReviewStatus === 'flagged' || v.doctorReviewStatus === 'edited';
+    if (recordsFilter === 'pending') return v.doctorReviewStatus === 'pending' || v.doctorReviewStatus === 'edited';
     return true;
   });
 
@@ -299,6 +309,13 @@ export const PregnancyTwinView: React.FC<PregnancyTwinViewProps> = ({
       badgeColor: 'bg-emerald-50 text-emerald-800 border-emerald-200 font-semibold'
     },
     {
+      id: 'medications',
+      label: 'Medications & Impact Hub',
+      icon: Pill,
+      badge: `${twin.medications?.length || 0} Regimens`,
+      badgeColor: 'bg-purple-50 text-purple-800 border-purple-200 font-semibold'
+    },
+    {
       id: 'analytics',
       label: 'Modeling & Sensitivity Studio',
       icon: TrendingUp,
@@ -320,6 +337,227 @@ export const PregnancyTwinView: React.FC<PregnancyTwinViewProps> = ({
 
   const renderOverviewSubPage = () => (
     <div className="space-y-4">
+      {/* 8-Milestone Care Path Pipeline: Profile -> Summary -> Serial Scans -> Trajectory -> AI State -> Emotional Check-in -> Meds -> Forecast */}
+      <div className="bg-white border border-slate-300 rounded-xl p-5 shadow-xs bg-gradient-to-br from-slate-50/50 via-white to-teal-50/30">
+        <div className="flex items-center justify-between border-b border-slate-200 pb-3 mb-4">
+          <div>
+            <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+              <Layers className="w-4 h-4 text-teal-700" />
+              <span>PregnancyTwin AI Care Delivery & Longitudinal Pipeline</span>
+            </h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              A continuous, 8-milestone patient Care Timeline mapping clinical coordinates, longitudinal signals, and forecasting coordinates.
+            </p>
+          </div>
+          <span className="text-[10px] font-mono font-bold bg-slate-100 text-slate-700 px-2.5 py-1 rounded border border-slate-200 select-none">
+            Active Care Cycle Map
+          </span>
+        </div>
+
+        {/* Responsive Grid with connecting arrows conceptual flow */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-3.5 relative">
+          
+          {/* Card 1: Profile */}
+          <div className="bg-white border border-slate-200 hover:border-slate-300 rounded-xl p-3 shadow-3xs flex flex-col justify-between transition relative">
+            <div>
+              <div className="flex items-center justify-between mb-1.5 border-b border-slate-100 pb-1.5">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">1. Profile</span>
+                <div className="p-1 bg-slate-50 text-slate-600 rounded">
+                  <Activity className="w-3 h-3" />
+                </div>
+              </div>
+              <div className="space-y-1 text-[11px]">
+                <div className="font-bold text-slate-800 leading-tight">{patient.name}</div>
+                <div className="text-slate-400 font-mono text-[9px]">{patient.mrn}</div>
+                <div className="text-slate-500 font-medium">Age {patient.age} &bull; G{patient.gravidity}P{patient.parity}</div>
+                <div className="text-slate-500 font-medium">BMI: {patient.maternalBmi || 24.5} kg/m²</div>
+              </div>
+            </div>
+            <div className="mt-2 text-[9px] font-mono text-slate-400 border-t border-slate-100/50 pt-1">
+              {patient.edd} EDD
+            </div>
+          </div>
+
+          {/* Card 2: Summary */}
+          <div className="bg-white border border-slate-200 hover:border-slate-300 rounded-xl p-3 shadow-3xs flex flex-col justify-between transition">
+            <div>
+              <div className="flex items-center justify-between mb-1.5 border-b border-slate-100 pb-1.5">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">2. Summary</span>
+                <div className="p-1 bg-slate-50 text-slate-600 rounded">
+                  <FileSpreadsheet className="w-3 h-3" />
+                </div>
+              </div>
+              <p className="text-[11px] text-slate-600 font-medium leading-relaxed line-clamp-4" title={patient.notes}>
+                {patient.notes}
+              </p>
+            </div>
+            <div className="mt-2 text-[9px] font-mono text-slate-400 border-t border-slate-100/50 pt-1">
+              Last Visit: {patient.lastVisitDate}
+            </div>
+          </div>
+
+          {/* Card 3: Serial Scans */}
+          <div className="bg-white border border-slate-200 hover:border-slate-300 rounded-xl p-3 shadow-3xs flex flex-col justify-between transition">
+            <div>
+              <div className="flex items-center justify-between mb-1.5 border-b border-slate-100 pb-1.5">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">3. Serial Scans</span>
+                <div className="p-1 bg-slate-50 text-slate-600 rounded">
+                  <Layers className="w-3 h-3" />
+                </div>
+              </div>
+              <div className="space-y-1 text-[11px] text-slate-600">
+                <div className="font-bold text-slate-800">{visits.length} Ultrasound Scans</div>
+                <div>Gestation Nodes:</div>
+                <div className="font-mono text-[10px] font-bold text-teal-700 bg-teal-50 px-1 py-0.5 rounded border border-teal-100 w-fit">
+                  {visits[0]?.gestationalAgeWeeks}w &rarr; {visits[visits.length - 1]?.gestationalAgeWeeks}w
+                </div>
+                <div className="text-slate-400 font-mono text-[9px]">BP: {currentVisit?.bloodPressure || '118/76 mmHg'}</div>
+              </div>
+            </div>
+            <div className="mt-2 text-[9px] font-mono text-slate-400 border-t border-slate-100/50 pt-1">
+              {visits[visits.length - 1]?.date} latest
+            </div>
+          </div>
+
+          {/* Card 4: Trajectory */}
+          <div className="bg-white border border-slate-200 hover:border-slate-300 rounded-xl p-3 shadow-3xs flex flex-col justify-between transition">
+            <div>
+              <div className="flex items-center justify-between mb-1.5 border-b border-slate-100 pb-1.5">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">4. Trajectory</span>
+                <div className="p-1 bg-slate-50 text-slate-600 rounded">
+                  <TrendingDown className="w-3 h-3" />
+                </div>
+              </div>
+              <div className="space-y-1.5 text-[11px]">
+                <span className="inline-block px-2 py-0.5 rounded-full text-[9px] font-bold bg-teal-50 text-teal-800 border border-teal-200 tracking-wide">
+                  {patient.trajectoryCategory.replace(/_/g, ' ')}
+                </span>
+                <div className="text-slate-500 font-medium">Velocities:</div>
+                <div className="text-slate-600 text-[10px] space-y-0.5 font-mono">
+                  <div>AFI: <strong className={velocities.afiVelocity_cmPerWeek < -0.3 ? 'text-rose-600 font-bold' : 'text-slate-800'}>{velocities.afiVelocity_cmPerWeek} cm/wk</strong></div>
+                  <div>Growth: <strong className={velocities.growthVelocity_percentilePerWeek < -1.0 ? 'text-rose-600 font-bold' : 'text-slate-800'}>{velocities.growthVelocity_percentilePerWeek} %ile/wk</strong></div>
+                </div>
+              </div>
+            </div>
+            <div className="mt-2 text-[9px] font-mono text-slate-400 border-t border-slate-100/50 pt-1">
+              Score: {trajectoryScore.trendScore}% Trend
+            </div>
+          </div>
+
+          {/* Card 5: AI State */}
+          <div className="bg-white border border-slate-200 hover:border-slate-300 rounded-xl p-3 shadow-3xs flex flex-col justify-between transition">
+            <div>
+              <div className="flex items-center justify-between mb-1.5 border-b border-slate-100 pb-1.5">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">5. AI Risk State</span>
+                <div className="p-1 bg-slate-50 text-slate-600 rounded">
+                  <ShieldAlert className="w-3 h-3" />
+                </div>
+              </div>
+              <div className="space-y-1.5 text-[11px]">
+                <span className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-black tracking-wide border uppercase ${
+                  patient.status === 'HIGH'
+                    ? 'bg-rose-50 text-rose-700 border-rose-200'
+                    : patient.status === 'WATCH'
+                    ? 'bg-amber-50 text-amber-800 border-amber-200'
+                    : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                }`}>
+                  {patient.status} RISK
+                </span>
+                <div className="text-slate-500 font-medium">Trajectory Score:</div>
+                <div className="text-xs font-black text-slate-800 font-mono">
+                  {trajectoryScore.overallScore} / 100
+                </div>
+              </div>
+            </div>
+            <div className="mt-2 text-[9px] font-mono text-slate-400 border-t border-slate-100/50 pt-1">
+              {trajectoryScore.confidenceScore}% Model Conf
+            </div>
+          </div>
+
+          {/* Card 6: Emotional Check-in */}
+          <div className="bg-white border border-slate-200 hover:border-slate-300 rounded-xl p-3 shadow-3xs flex flex-col justify-between transition">
+            <div>
+              <div className="flex items-center justify-between mb-1.5 border-b border-slate-100 pb-1.5">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">6. Emotional</span>
+                <div className="p-1 bg-slate-50 text-slate-600 rounded">
+                  <Heart className="w-3 h-3" />
+                </div>
+              </div>
+              <div className="space-y-1 text-[11px] text-slate-600">
+                <div className="font-bold text-slate-800 flex items-center gap-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-rose-400 animate-pulse" />
+                  <span>{currentVisit?.emotionalState || 'Stable / Calm'}</span>
+                </div>
+                <div className="text-[10px] text-slate-500 font-medium">Maternal Trend:</div>
+                <div className="text-[9px] text-slate-500 font-mono leading-tight max-h-[44px] overflow-y-auto">
+                  {visits.map((v, i) => (
+                    <div key={v.id}>
+                      {v.gestationalAgeWeeks}w: <span className="font-semibold text-slate-700">{v.emotionalState}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="mt-2 text-[9px] font-mono text-slate-400 border-t border-slate-100/50 pt-1">
+              Maternal Wellness
+            </div>
+          </div>
+
+          {/* Card 7: Meds */}
+          <div className="bg-white border border-slate-200 hover:border-slate-300 rounded-xl p-3 shadow-3xs flex flex-col justify-between transition">
+            <div>
+              <div className="flex items-center justify-between mb-1.5 border-b border-slate-100 pb-1.5">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">7. Medications</span>
+                <div className="p-1 bg-slate-50 text-slate-600 rounded">
+                  <Pill className="w-3 h-3" />
+                </div>
+              </div>
+              <div className="space-y-1 text-[11px] text-slate-600">
+                <div className="text-slate-500 font-medium mb-1">Prescribed:</div>
+                {twin.medications && twin.medications.length > 0 ? (
+                  <div className="space-y-1 max-h-[50px] overflow-y-auto">
+                    {twin.medications.map((m, idx) => (
+                      <div key={idx} className="bg-slate-50 px-1 py-0.5 rounded border border-slate-150 text-[9px] font-semibold text-slate-700 leading-tight">
+                        {m.medicationName}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="italic text-slate-400 text-[10px]">No meds recorded.</div>
+                )}
+              </div>
+            </div>
+            <div className="mt-2 text-[9px] font-mono text-slate-400 border-t border-slate-100/50 pt-1">
+              {twin.medications?.length || 0} Prescriptions
+            </div>
+          </div>
+
+          {/* Card 8: Forecast */}
+          <div className="bg-white border border-slate-200 hover:border-slate-300 rounded-xl p-3 shadow-3xs flex flex-col justify-between transition">
+            <div>
+              <div className="flex items-center justify-between mb-1.5 border-b border-slate-100 pb-1.5">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">8. Forecast</span>
+                <div className="p-1 bg-slate-50 text-slate-600 rounded">
+                  <Sparkles className="w-3 h-3" />
+                </div>
+              </div>
+              <div className="space-y-1 text-[11px]">
+                <div className="font-bold text-slate-800">GA Forecast: {forecast.expectedGaWeeks}w</div>
+                <div className="text-slate-500 font-medium">Expected Ranges:</div>
+                <div className="text-[10px] text-slate-600 font-mono space-y-0.5">
+                  <div>AFI: {forecast.expectedAfiRange[0]}–{forecast.expectedAfiRange[1]}cm</div>
+                  <div>Growth: {forecast.expectedGrowthPercentileRange[0]}–{forecast.expectedGrowthPercentileRange[1]}%</div>
+                </div>
+              </div>
+            </div>
+            <div className="mt-2 text-[9px] font-mono text-slate-400 border-t border-slate-100/50 pt-1 text-teal-700 font-bold">
+              {forecast.predictedTrajectory}
+            </div>
+          </div>
+
+        </div>
+      </div>
+
       {/* Hero-ified Serial Trajectory Timeline Card */}
       <div className="bg-white border border-slate-300 rounded-xl p-5 shadow-2xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-3 mb-4">
@@ -612,11 +850,11 @@ export const PregnancyTwinView: React.FC<PregnancyTwinViewProps> = ({
                                 </div>
                                 <div className="flex items-baseline space-x-1 mt-0.5">
                                   <strong className="text-sm text-slate-950 font-mono font-bold">
-                                    {selectedVisit.growthPercentile}th percentile
+                                    {getOrdinal(selectedVisit.growthPercentile)} percentile
                                   </strong>
                                   {previousVisit && (
                                     <span className="text-[10px] text-slate-400">
-                                      (was {previousVisit.growthPercentile}th)
+                                      (was {getOrdinal(previousVisit.growthPercentile)})
                                     </span>
                                   )}
                                 </div>
@@ -897,7 +1135,7 @@ export const PregnancyTwinView: React.FC<PregnancyTwinViewProps> = ({
                   <span className="font-mono">{whyNow.severity.toUpperCase()}</span>
                 </div>
                 <p className="text-[11px] leading-tight font-medium">
-                  {whyNow.reason || 'Normal physiological growth velocity aligned with patient baseline.'}
+                  {whyNow.reasons?.join(', ') || whyNow.summary || 'Normal physiological growth velocity aligned with patient baseline.'}
                 </p>
               </div>
             </div>
@@ -1262,10 +1500,9 @@ export const PregnancyTwinView: React.FC<PregnancyTwinViewProps> = ({
 
       {/* Medication Impact & Trajectory Analytics Workstation integrated alongside the timeline */}
       <div className="bg-white border border-slate-300 rounded-xl p-5 shadow-2xs">
-        <MedicationImpactPanel
+        <MedicationsHub
+          twin={twin}
           patientId={patient.id}
-          medications={twin.medications || []}
-          visits={sortedVisits}
           currentGestationalAgeWeeks={patient.currentGestationalAgeWeeks}
           onRefresh={onRefreshPatients || (() => {})}
         />
@@ -1721,51 +1958,59 @@ export const PregnancyTwinView: React.FC<PregnancyTwinViewProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredVisits.map((v, idx) => (
-                <tr key={v.id} className={idx % 2 === 1 ? 'bg-slate-50/30 hover:bg-slate-50 transition-colors' : 'hover:bg-slate-50 transition-colors'}>
-                  <td className="py-2.5 px-3 font-medium text-slate-900 text-xs">{v.date}</td>
-                  <td className="py-2.5 px-3 font-mono text-slate-800 text-[11px]">{v.gestationalAgeWeeks}w {v.gestationalAgeDays}d</td>
-                  <td className={`py-2.5 px-3 font-mono font-semibold ${v.amnioticFluidIndex_cm < 9.0 ? 'text-amber-800' : 'text-slate-800'}`}>
-                    {v.amnioticFluidIndex_cm.toFixed(1)}
-                  </td>
-                  <td className="py-2.5 px-3 text-slate-700 font-mono">{v.singleDeepestPocket_cm.toFixed(1)}</td>
-                  <td className="py-2.5 px-3 font-mono text-slate-800">{v.estimatedFetalWeight_g}</td>
-                  <td className="py-2.5 px-3">
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
-                      v.growthPercentile < 10
-                        ? 'bg-rose-50 text-rose-800 border border-rose-200'
-                        : v.growthPercentile < 30
-                        ? 'bg-amber-50 text-amber-800 border border-amber-200'
-                        : 'bg-slate-100 text-slate-700 border border-slate-200'
-                    }`}>
-                      {v.growthPercentile}th
-                    </span>
-                  </td>
-                  <td className="py-2.5 px-3 text-slate-700 font-mono">{v.fetalHeartRate_bpm} bpm</td>
-                  <td className="py-2.5 px-3 capitalize text-slate-700">{v.presentation}</td>
-                  <td className="py-2.5 px-3">
-                    <span className={`inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded border ${
-                      v.doctorReviewStatus === 'accepted'
-                        ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                        : v.doctorReviewStatus === 'edited'
-                        ? 'bg-blue-50 text-blue-800 border border-blue-200'
-                        : 'bg-amber-50 text-amber-800 border border-amber-200'
-                    }`}>
-                      {v.doctorReviewStatus.toUpperCase()}
-                    </span>
-                  </td>
-                  <td className="py-2.5 px-3 text-right">
-                    <button
-                      onClick={() => onOpenReviewMeasurement(v)}
-                      className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-md bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-[11px] font-medium transition-colors cursor-pointer"
-                      title="Review / Edit extracted measurements"
-                    >
-                      <Edit3 className="w-3 h-3 text-slate-500" />
-                      <span>Review</span>
-                    </button>
+              {filteredVisits.length === 0 ? (
+                <tr>
+                  <td colSpan={10} className="py-8 text-center text-slate-500 font-semibold bg-slate-50/50">
+                    No matching ultrasound checkpoints found. Use the "Upload Scan" or "Live Biometrics" options to input scan data.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                filteredVisits.map((v, idx) => (
+                  <tr key={v.id} className={idx % 2 === 1 ? 'bg-slate-50/30 hover:bg-slate-50 transition-colors' : 'hover:bg-slate-50 transition-colors'}>
+                    <td className="py-2.5 px-3 font-medium text-slate-900 text-xs">{v.date}</td>
+                    <td className="py-2.5 px-3 font-mono text-slate-800 text-[11px]">{v.gestationalAgeWeeks}w {v.gestationalAgeDays}d</td>
+                    <td className={`py-2.5 px-3 font-mono font-semibold ${v.amnioticFluidIndex_cm < 9.0 ? 'text-amber-800' : 'text-slate-800'}`}>
+                      {v.amnioticFluidIndex_cm.toFixed(1)}
+                    </td>
+                    <td className="py-2.5 px-3 text-slate-700 font-mono">{v.singleDeepestPocket_cm.toFixed(1)}</td>
+                    <td className="py-2.5 px-3 font-mono text-slate-800">{v.estimatedFetalWeight_g}</td>
+                    <td className="py-2.5 px-3">
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
+                        v.growthPercentile < 10
+                          ? 'bg-rose-50 text-rose-800 border border-rose-200'
+                          : v.growthPercentile < 30
+                          ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                          : 'bg-slate-100 text-slate-700 border border-slate-200'
+                      }`}>
+                        {v.growthPercentile}th
+                      </span>
+                    </td>
+                    <td className="py-2.5 px-3 text-slate-700 font-mono">{v.fetalHeartRate_bpm} bpm</td>
+                    <td className="py-2.5 px-3 capitalize text-slate-700">{v.presentation}</td>
+                    <td className="py-2.5 px-3">
+                      <span className={`inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded border ${
+                        v.doctorReviewStatus === 'accepted'
+                          ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                          : v.doctorReviewStatus === 'edited'
+                          ? 'bg-blue-50 text-blue-800 border border-blue-200'
+                          : 'bg-amber-50 text-amber-800 border border-amber-200'
+                      }`}>
+                        {v.doctorReviewStatus.toUpperCase()}
+                      </span>
+                    </td>
+                    <td className="py-2.5 px-3 text-right">
+                      <button
+                        onClick={() => onOpenReviewMeasurement(v)}
+                        className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-md bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-[11px] font-medium transition-colors cursor-pointer"
+                        title="Review / Edit extracted measurements"
+                      >
+                        <Edit3 className="w-3 h-3 text-slate-500" />
+                        <span>Review</span>
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -1775,10 +2020,9 @@ export const PregnancyTwinView: React.FC<PregnancyTwinViewProps> = ({
 
   const renderMedicationsSubPage = () => {
     return (
-      <MedicationImpactPanel
+      <MedicationsHub
+        twin={twin}
         patientId={patient.id}
-        medications={twin.medications || []}
-        visits={sortedVisits}
         currentGestationalAgeWeeks={patient.currentGestationalAgeWeeks}
         onRefresh={onRefreshPatients || (() => {})}
       />
@@ -2115,6 +2359,7 @@ export const PregnancyTwinView: React.FC<PregnancyTwinViewProps> = ({
         {activeSubPage === 'overview' && renderOverviewSubPage()}
         {activeSubPage === 'analytics' && renderAnalyticsSubPage()}
         {activeSubPage === 'records' && renderRecordsSubPage()}
+        {activeSubPage === 'medications' && renderMedicationsSubPage()}
         {activeSubPage === 'delivery' && (
           <TwinDeliveryPredictionTab
             patient={patient}
@@ -2141,6 +2386,7 @@ export const PregnancyTwinView: React.FC<PregnancyTwinViewProps> = ({
       {isPrintModalOpen && (
         <ClinicalReportPrintModal
           twin={twin}
+          currentUser={currentUser}
           onClose={() => setIsPrintModalOpen(false)}
         />
       )}

@@ -41,6 +41,7 @@ import {
 } from 'lucide-react';
 import { PregnancyDigitalTwin, VisitMeasurement } from '../types';
 import { MedicationTimeline } from './MedicationTimeline';
+import { getOrdinal } from '../utils/trajectoryEngine';
 
 export interface GrowthChartVisualizationProps {
   twin: PregnancyDigitalTwin;
@@ -651,7 +652,7 @@ export const GrowthChartVisualization: React.FC<GrowthChartVisualizationProps> =
                         )}
                       </td>
                       <td className="py-3 px-3">
-                        <div className="font-mono font-bold text-slate-900">{v.growthPercentile}th %ile</div>
+                        <div className="font-mono font-bold text-slate-900">{getOrdinal(v.growthPercentile)} %ile</div>
                         {prevV ? (
                           <div className="text-[10px] text-slate-500 mt-0.5 font-medium">
                             <span className={v.growthPercentile < 10 ? 'text-rose-600 font-semibold' : 'text-emerald-700 font-semibold'}>{pctDeltaStr}</span>
@@ -1025,7 +1026,7 @@ export const GrowthChartVisualization: React.FC<GrowthChartVisualizationProps> =
                   <h3 className="text-xs font-bold text-slate-900">Fetal Growth Percentile</h3>
                 </div>
                 <span className="text-[10px] font-mono font-bold text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200">
-                  {currentVisit ? `${currentVisit.growthPercentile}th %ile` : 'N/A'}
+                  {currentVisit ? `${getOrdinal(currentVisit.growthPercentile)} %ile` : 'N/A'}
                 </span>
               </div>
 

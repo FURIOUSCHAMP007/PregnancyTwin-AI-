@@ -16,6 +16,15 @@ import {
 import { smoothLongitudinalVisits } from './kalmanFilter';
 
 /**
+ * Helper to get proper English ordinal suffixes for numeric values (e.g., 53rd, 50th)
+ */
+export function getOrdinal(n: number): string {
+  const s = ["th", "st", "nd", "rd"];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
+/**
  * Calculates longitudinal velocities and accelerations across visits
  */
 export function calculateVelocities(visits: VisitMeasurement[]): TrajectoryVelocity {
@@ -316,7 +325,7 @@ export function evaluateWhyNow(
     suppressionDetails += `Damped artificial drop in Amniotic Fluid Index (Raw: ${current.amnioticFluidIndex_cm}cm, Kalman: ${currentFilteredAfi.toFixed(1)}cm). `;
   }
   if (rawGrowthAlert && !kalmanGrowthAlert) {
-    suppressionDetails += `Smoothed sonographer caliper deviation in fetal weight percentile (Raw: ${current.growthPercentile}th, Kalman: ${Math.round(currentFilteredGrowth)}th). `;
+    suppressionDetails += `Smoothed sonographer caliper deviation in fetal weight percentile (Raw: ${getOrdinal(current.growthPercentile)}, Kalman: ${getOrdinal(Math.round(currentFilteredGrowth))}). `;
   }
 
   const kalmanFilterRecord: import('../types').KalmanFilterRecord = {
@@ -372,7 +381,7 @@ export function evaluateWhyNow(
   const afiDeltaText = `${prev.amnioticFluidIndex_cm.toFixed(1)} cm → ${current.amnioticFluidIndex_cm.toFixed(1)} cm (${afiDeltaSymbol} ${Math.abs(afiPctChange)}%)`;
 
   const growthDeltaSymbol = growthDiff < 0 ? '↓' : growthDiff > 0 ? '↑' : '→';
-  const growthDeltaText = `${prev.growthPercentile}th → ${current.growthPercentile}th (${growthDeltaSymbol} ${Math.abs(growthDiff)} percentile pts)`;
+  const growthDeltaText = `${getOrdinal(prev.growthPercentile)} → ${getOrdinal(current.growthPercentile)} (${growthDeltaSymbol} ${Math.abs(growthDiff).toFixed(1)} percentile pts)`;
 
   // Evaluate Fluid Alerts (SDP / AFI serial decline)
   if ((consecutiveFluidDrops >= 2 || consecutiveSdpDrops >= 2) && (afiPctChange <= -12 || current.amnioticFluidIndex_cm < 8.5 || current.singleDeepestPocket_cm < 3.5)) {
@@ -402,7 +411,7 @@ export function evaluateWhyNow(
   if (consecutiveGrowthDrops >= 2 || growthDiff <= -10) {
     triggered = true;
     severity = (current.growthPercentile < 15 || growthDiff <= -18) ? 'critical' : severity;
-    reasons.push(`Growth percentile plummeted from ${sorted[0].growthPercentile}th to ${current.growthPercentile}th percentile across serial scans`);
+    reasons.push(`Growth percentile plummeted from ${getOrdinal(sorted[0].growthPercentile)} to ${getOrdinal(current.growthPercentile)} percentile across serial scans`);
     if (consecutiveGrowthDrops >= 2) {
       reasons.push(`Persistent downward fetal growth trajectory across ${consecutiveGrowthDrops} consecutive scans`);
     }

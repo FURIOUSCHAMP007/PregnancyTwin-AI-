@@ -18,7 +18,7 @@ import { KnowledgeBaseModal } from './components/KnowledgeBaseModal';
 import { LiveInputStudioView } from './components/LiveInputStudioView';
 import { GrowthTrajectoryAnalyticsView } from './components/GrowthTrajectoryAnalyticsView';
 import { HomePageView } from './components/HomePageView';
-import { MedicationsPageView } from './components/MedicationsPageView';
+import { MedicationsHub } from './components/MedicationsHub';
 import { SihProjectPlanView } from './components/SihProjectPlanView';
 import { PlatformWalkthrough } from './components/PlatformWalkthrough';
 import {
@@ -56,7 +56,7 @@ export default function App() {
     
     let subPage: TwinSubPage = 'overview';
     const sp = params.get('subpage');
-    if (sp && ['overview', 'analytics', 'records', 'hemodynamics', 'guidelines', 'delivery'].includes(sp)) {
+    if (sp && ['overview', 'analytics', 'records', 'hemodynamics', 'guidelines', 'delivery', 'medications'].includes(sp)) {
       subPage = sp as TwinSubPage;
     }
 
@@ -130,7 +130,7 @@ export default function App() {
       
       let subPage: TwinSubPage = 'overview';
       const sp = params.get('subpage');
-      if (sp && ['overview', 'analytics', 'records', 'hemodynamics', 'guidelines', 'delivery'].includes(sp)) {
+      if (sp && ['overview', 'analytics', 'records', 'hemodynamics', 'guidelines', 'delivery', 'medications'].includes(sp)) {
         subPage = sp as TwinSubPage;
       }
 
@@ -689,13 +689,6 @@ export default function App() {
             {/* Split View with Hidden Sidebar & Horizontal REST 5-Case Display */}
             {clinicalViewMode === 'split' ? (
               <div className="space-y-4 w-full">
-                {/* Horizontal REST Patient Display: 5 Unique Cases */}
-                <RestPatientDisplay
-                  patients={patients}
-                  selectedPatientId={selectedPatientId}
-                  onSelectPatient={(id) => setSelectedPatientId(id)}
-                />
-
                 {/* Full-Width: Digital Twin Deep View */}
                 <div className="w-full min-w-0 space-y-4">
                   {rbacError ? (
@@ -715,6 +708,7 @@ export default function App() {
                   ) : digitalTwin ? (
                     <PregnancyTwinView
                       twin={digitalTwin}
+                      currentUser={currentUser}
                       initialSubPage={
                         activeTab === 'simulation'
                           ? 'analytics'
@@ -817,7 +811,7 @@ export default function App() {
         )}
 
         {activeTab === 'medications' && (
-          <MedicationsPageView
+          <MedicationsHub
             twin={digitalTwin}
             patients={patients}
             selectedPatientId={selectedPatientId}

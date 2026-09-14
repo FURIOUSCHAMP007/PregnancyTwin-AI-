@@ -4,7 +4,7 @@
  * machine PACS presets, and multimodal Gemini AI biometric extraction.
  */
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   X,
   UploadCloud,
@@ -22,7 +22,9 @@ import {
   Check,
   Stethoscope,
   Info,
-  RefreshCw
+  RefreshCw,
+  Edit3,
+  Trash2
 } from 'lucide-react';
 import { SAMPLE_REPORT_TEMPLATES } from '../data/mockData';
 import { Patient } from '../types';
@@ -143,8 +145,103 @@ export const UltrasoundUploadModal: React.FC<UltrasoundUploadModalProps> = ({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [showCaliperOverlay, setShowCaliperOverlay] = useState<boolean>(true);
+  const [hoveredParameter, setHoveredParameter] = useState<'HC' | 'AC' | 'FL' | 'AFI' | 'EFW' | null>(null);
+
+  const [reportFile, setReportFile] = useState<{
+    name: string;
+    size: number;
+    type: string;
+    base64?: string;
+  } | null>(null);
+
+  // --- AI-Assisted Measurement Extraction Verification States ---
+  const [verifHc, setVerifHc] = useState<string>('');
+  const [hcStatus, setHcStatus] = useState<'pending' | 'confirmed' | 'edited' | 'rejected'>('pending');
+
+  const [verifAc, setVerifAc] = useState<string>('');
+  const [acStatus, setAcStatus] = useState<'pending' | 'confirmed' | 'edited' | 'rejected'>('pending');
+
+  const [verifFl, setVerifFl] = useState<string>('');
+  const [flStatus, setFlStatus] = useState<'pending' | 'confirmed' | 'edited' | 'rejected'>('pending');
+
+  const [verifEfw, setVerifEfw] = useState<string>('');
+  const [efwStatus, setEfwStatus] = useState<'pending' | 'confirmed' | 'edited' | 'rejected'>('pending');
+
+  const [verifAfi, setVerifAfi] = useState<string>('');
+  const [afiStatus, setAfiStatus] = useState<'pending' | 'confirmed' | 'edited' | 'rejected'>('pending');
+
+  useEffect(() => {
+    if (extractedData) {
+      setVerifHc(extractedData.biometrics?.hc_mm?.toString() || '');
+      setVerifAc(extractedData.biometrics?.ac_mm?.toString() || '');
+      setVerifFl(extractedData.biometrics?.fl_mm?.toString() || '');
+      setVerifEfw(extractedData.estimated_fetal_weight_g?.toString() || '');
+      setVerifAfi(extractedData.amniotic_fluid_index_cm?.toString() || '');
+
+      setHcStatus('pending');
+      setAcStatus('pending');
+      setFlStatus('pending');
+      setEfwStatus('pending');
+      setAfiStatus('pending');
+    } else {
+      setVerifHc('');
+      setVerifAc('');
+      setVerifFl('');
+      setVerifEfw('');
+      setVerifAfi('');
+
+      setHcStatus('pending');
+      setAcStatus('pending');
+      setFlStatus('pending');
+      setEfwStatus('pending');
+      setAfiStatus('pending');
+    }
+  }, [extractedData]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const reportFileInputRef = useRef<HTMLInputElement>(null);
+
+  // Handle clinical text or PDF report file upload
+  const handleReportFileSelect = (file: File) => {
+    const isText = file.type === 'text/plain' || file.name.endsWith('.txt');
+    const isPdf = file.type === 'application/pdf' || file.name.endsWith('.pdf');
+
+    if (!isText && !isPdf) {
+      setErrorMessage('Please select a valid report file (Plain Text .txt or PDF .pdf).');
+      return;
+    }
+
+    const reader = new FileReader();
+    if (isText) {
+      reader.onload = (e) => {
+        const text = e.target?.result as string;
+        setReportText(text);
+        setReportFile({
+          name: file.name,
+          size: file.size,
+          type: 'text/plain',
+          base64: undefined
+        });
+        setExtractedData(null);
+        setErrorMessage(null);
+      };
+      reader.readAsText(file);
+    } else if (isPdf) {
+      reader.onload = (e) => {
+        const base64 = e.target?.result as string;
+        setReportFile({
+          name: file.name,
+          size: file.size,
+          type: 'application/pdf',
+          base64
+        });
+        setReportText('PDF Document Attached: ' + file.name + ' (' + Math.round(file.size / 1024) + ' KB). Gemini Multi-Modal model will parse the PDF directly.');
+        setExtractedData(null);
+        setErrorMessage(null);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   // Handle system file selection (from file picker or drop)
   const handleSystemFileSelect = (file: File) => {
@@ -241,7 +338,7 @@ export const UltrasoundUploadModal: React.FC<UltrasoundUploadModalProps> = ({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             reportText,
-            imageBase64: systemFile?.base64 || DEFAULT_ULTRASOUND_IMAGE
+            imageBase64: reportFile?.base64 || systemFile?.base64 || DEFAULT_ULTRASOUND_IMAGE
           })
         });
         const data = await res.json();
@@ -279,31 +376,283 @@ export const UltrasoundUploadModal: React.FC<UltrasoundUploadModalProps> = ({
     }
   };
 
+  // Unified helper to construct verified and overridden data from user input
+  const getVerifiedData = () => {
+    if (!extractedData) return null;
+
+    const biometrics = { ...extractedData.biometrics };
+    if (hcStatus === 'confirmed' || hcStatus === 'edited') {
+      biometrics.hc_mm = Number(verifHc) || undefined;
+    } else if (hcStatus === 'rejected') {
+      biometrics.hc_mm = undefined;
+    }
+
+    if (acStatus === 'confirmed' || acStatus === 'edited') {
+      biometrics.ac_mm = Number(verifAc) || undefined;
+    } else if (acStatus === 'rejected') {
+      biometrics.ac_mm = undefined;
+    }
+
+    if (flStatus === 'confirmed' || flStatus === 'edited') {
+      biometrics.fl_mm = Number(verifFl) || undefined;
+    } else if (flStatus === 'rejected') {
+      biometrics.fl_mm = undefined;
+    }
+
+    return {
+      ...extractedData,
+      estimated_fetal_weight_g: (efwStatus === 'confirmed' || efwStatus === 'edited') ? Number(verifEfw) : (efwStatus === 'rejected' ? 0 : extractedData.estimated_fetal_weight_g),
+      growth_percentile: (efwStatus === 'confirmed' || efwStatus === 'edited') ? (extractedData.growth_percentile || 45) : (efwStatus === 'rejected' ? 0 : extractedData.growth_percentile),
+      amniotic_fluid_index_cm: (afiStatus === 'confirmed' || afiStatus === 'edited') ? Number(verifAfi) : (afiStatus === 'rejected' ? 0 : extractedData.amniotic_fluid_index_cm),
+      biometrics
+    };
+  };
+
+  // Confirm all extracted values at once for high-throughput clinical workflows
+  const handleConfirmAll = () => {
+    if (extractedData) {
+      const hcVal = extractedData.biometrics?.hc_mm?.toString() || '';
+      const acVal = extractedData.biometrics?.ac_mm?.toString() || '';
+      const flVal = extractedData.biometrics?.fl_mm?.toString() || '';
+      const efwVal = extractedData.estimated_fetal_weight_g?.toString() || '';
+      const afiVal = extractedData.amniotic_fluid_index_cm?.toString() || '';
+
+      setVerifHc(hcVal);
+      setHcStatus('confirmed');
+
+      setVerifAc(acVal);
+      setAcStatus('confirmed');
+
+      setVerifFl(flVal);
+      setFlStatus('confirmed');
+
+      setVerifEfw(efwVal);
+      setEfwStatus('confirmed');
+
+      setVerifAfi(afiVal);
+      setAfiStatus('confirmed');
+    }
+  };
+
+  // Basic biological range validations to alert clinician during manual edits
+  const getValidationWarning = (code: string, val: string) => {
+    if (!val) return null;
+    const num = Number(val);
+    if (isNaN(num)) return null;
+    if (code === 'HC' && (num < 150 || num > 380)) return 'Atypical HC Range';
+    if (code === 'AC' && (num < 130 || num > 375)) return 'Atypical AC Range';
+    if (code === 'FL' && (num < 30 || num > 92)) return 'Atypical FL Range';
+    if (code === 'EFW' && (num < 400 || num > 5200)) return 'Atypical Fetal Weight';
+    if (code === 'AFI' && (num < 2 || num > 38)) return 'Atypical Amniotic Fluid Vol';
+    return null;
+  };
+
+  // Helper method to render custom interactive verification table row for each metric
+  const renderVerificationRow = (
+    code: string,
+    label: string,
+    unit: string,
+    extractedValue: any,
+    currentVal: string,
+    setVal: (v: string) => void,
+    status: 'pending' | 'confirmed' | 'edited' | 'rejected',
+    setStatus: (s: 'pending' | 'confirmed' | 'edited' | 'rejected') => void
+  ) => {
+    const isPending = status === 'pending';
+    const isConfirmed = status === 'confirmed';
+    const isEdited = status === 'edited';
+    const isRejected = status === 'rejected';
+
+    return (
+      <tr
+        key={code}
+        onMouseEnter={() => setHoveredParameter(code as any)}
+        onMouseLeave={() => setHoveredParameter(null)}
+        className={`transition-colors border-b border-slate-100 last:border-0 ${
+          isRejected
+            ? 'bg-rose-50/20'
+            : hoveredParameter === code
+            ? 'bg-teal-50/50 font-medium'
+            : 'hover:bg-slate-50/40'
+        }`}
+      >
+        {/* Column 1: Parameter Info */}
+        <td className="p-3">
+          <div className="flex items-center space-x-2">
+            <span className={`font-mono font-black text-[10px] border px-2 py-0.5 rounded shadow-3xs transition-all ${
+              hoveredParameter === code
+                ? 'text-teal-900 bg-teal-200 border-teal-400 scale-105'
+                : 'text-teal-800 bg-teal-50 border-teal-200'
+            }`}>
+              {code}
+            </span>
+            <span className="font-bold text-slate-700">{label}</span>
+          </div>
+        </td>
+
+        {/* Column 2: Raw Extracted Value from Gemini Vision */}
+        <td className="p-3">
+          <span className="font-mono text-slate-500 font-semibold bg-slate-50 border border-slate-150 px-2 py-0.5 rounded">
+            {extractedValue !== 'Not found' ? `${extractedValue} ${unit}` : 'Not found'}
+          </span>
+        </td>
+
+        {/* Column 3: Verified Value (Editable Input mapped to current state) */}
+        <td className="p-3">
+          <div className="flex items-center space-x-1.5">
+            <input
+              type="number"
+              step={unit === 'cm' ? '0.1' : '1'}
+              value={currentVal}
+              disabled={isRejected}
+              onChange={(e) => {
+                setVal(e.target.value);
+                setStatus('edited');
+              }}
+              onFocus={() => {
+                setHoveredParameter(code as any);
+                if (status === 'pending') {
+                  setStatus('edited');
+                }
+              }}
+              onBlur={() => {
+                setHoveredParameter(null);
+              }}
+              className={`w-28 text-xs font-mono font-bold border rounded px-2 py-1 text-center transition focus:outline-none focus:ring-1 ${
+                isRejected
+                  ? 'bg-rose-50/50 border-rose-200 text-rose-500 line-through cursor-not-allowed shadow-inner'
+                  : isConfirmed
+                  ? 'bg-emerald-50/20 border-emerald-300 text-emerald-800 focus:border-emerald-500 focus:ring-emerald-500 shadow-2xs'
+                  : isEdited
+                  ? 'bg-blue-50/20 border-blue-300 text-blue-800 focus:border-blue-500 focus:ring-blue-500 shadow-2xs'
+                  : 'bg-white border-slate-300 text-slate-800 focus:border-teal-500 focus:ring-teal-500 shadow-3xs'
+              }`}
+              placeholder="—"
+            />
+            <span className="text-[10px] text-slate-400 font-bold font-mono uppercase">{unit}</span>
+          </div>
+        </td>
+
+        {/* Column 4: Validation Status & biological bounds warnings */}
+        <td className="p-3 text-center">
+          <div className="flex flex-col items-center space-y-1">
+            <span className={`inline-flex items-center text-[9px] font-bold font-mono px-2 py-0.5 rounded-full border uppercase tracking-wider ${
+              isConfirmed
+                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                : isEdited
+                ? 'bg-blue-50 text-blue-700 border-blue-200'
+                : isRejected
+                ? 'bg-rose-50 text-rose-700 border-rose-200'
+                : 'bg-amber-50 text-amber-700 border-amber-200 animate-pulse'
+            }`}>
+              {isConfirmed && '✓ Confirmed'}
+              {isEdited && '✎ Edited'}
+              {isRejected && '✕ Rejected'}
+              {isPending && '⏳ Pending'}
+            </span>
+            {isEdited && getValidationWarning(code, currentVal) && (
+              <span className="text-[8px] text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded font-black tracking-tight animate-pulse flex items-center gap-0.5 shrink-0 whitespace-nowrap">
+                <AlertCircle className="w-2.5 h-2.5 text-amber-600 shrink-0" />
+                {getValidationWarning(code, currentVal)}
+              </span>
+            )}
+          </div>
+        </td>
+
+        {/* Column 5: Validation Action Controls */}
+        <td className="p-3 text-right">
+          <div className="inline-flex items-center border border-slate-200 rounded-lg overflow-hidden bg-white shadow-3xs">
+            {/* Confirm button */}
+            <button
+              type="button"
+              onClick={() => {
+                setStatus('confirmed');
+                if (extractedValue !== 'Not found') {
+                  setVal(extractedValue.toString());
+                }
+              }}
+              title="Confirm value"
+              className={`px-3 py-1.5 border-r border-slate-200 transition-all flex items-center space-x-1 ${
+                isConfirmed
+                  ? 'bg-emerald-500 text-white font-bold'
+                  : 'text-slate-500 hover:text-emerald-600 hover:bg-slate-50'
+              }`}
+            >
+              <Check className="w-3 h-3" />
+              <span className="text-[10px] font-semibold">Confirm</span>
+            </button>
+
+            {/* Edit button */}
+            <button
+              type="button"
+              onClick={() => {
+                setStatus('edited');
+                if (!currentVal && extractedValue !== 'Not found') {
+                  setVal(extractedValue.toString());
+                }
+              }}
+              title="Edit value"
+              className={`px-3 py-1.5 border-r border-slate-200 transition-all flex items-center space-x-1 ${
+                isEdited
+                  ? 'bg-blue-500 text-white font-bold'
+                  : 'text-slate-500 hover:text-blue-600 hover:bg-slate-50'
+              }`}
+            >
+              <Edit3 className="w-3 h-3" />
+              <span className="text-[10px] font-semibold">Edit</span>
+            </button>
+
+            {/* Reject button */}
+            <button
+              type="button"
+              onClick={() => {
+                setStatus('rejected');
+              }}
+              title="Reject value"
+              className={`px-3 py-1.5 transition-all flex items-center space-x-1 ${
+                isRejected
+                  ? 'bg-rose-500 text-white font-bold'
+                  : 'text-slate-500 hover:text-rose-600 hover:bg-slate-50'
+              }`}
+            >
+              <Trash2 className="w-3 h-3" />
+              <span className="text-[10px] font-semibold">Reject</span>
+            </button>
+          </div>
+        </td>
+      </tr>
+    );
+  };
+
   // Commit extracted measurement to the digital twin
   const handleCommitToTwin = async () => {
-    if (!extractedData) return;
+    const verified = getVerifiedData();
+    if (!verified) return;
     setIsCommitting(true);
     try {
       const payload = {
         date: new Date().toISOString().split('T')[0],
-        gestationalAgeWeeks: extractedData.gestational_age_weeks || patient.currentGestationalAgeWeeks,
-        gestationalAgeDays: extractedData.gestational_age_days || 0,
-        estimatedFetalWeight_g: extractedData.estimated_fetal_weight_g || 1850,
-        growthPercentile: extractedData.growth_percentile || 45,
-        amnioticFluidIndex_cm: extractedData.amniotic_fluid_index_cm || 10.5,
-        singleDeepestPocket_cm: extractedData.maximum_vertical_pocket_cm || 4.2,
-        fetalHeartRate_bpm: extractedData.fetal_heart_rate_bpm || 142,
-        presentation: extractedData.presentation || 'cephalic',
-        placentaLocation: extractedData.placenta_location || 'posterior',
-        biometrics: extractedData.biometrics || { hc_mm: 295, ac_mm: 272, fl_mm: 61, bpd_mm: 82 },
-        doppler: extractedData.doppler || {
+        gestationalAgeWeeks: verified.gestational_age_weeks || patient.currentGestationalAgeWeeks,
+        gestationalAgeDays: verified.gestational_age_days || 0,
+        estimatedFetalWeight_g: verified.estimated_fetal_weight_g || 1850,
+        growthPercentile: verified.growth_percentile || 45,
+        amnioticFluidIndex_cm: verified.amniotic_fluid_index_cm || 10.5,
+        singleDeepestPocket_cm: verified.maximum_vertical_pocket_cm || 4.2,
+        fetalHeartRate_bpm: verified.fetal_heart_rate_bpm || 142,
+        presentation: verified.presentation || 'cephalic',
+        placentaLocation: verified.placenta_location || 'posterior',
+        biometrics: verified.biometrics || { hc_mm: 295, ac_mm: 272, fl_mm: 61, bpd_mm: 82 },
+        doppler: verified.doppler || {
           umbilicalArteryPi: 1.02,
           middleCerebralArteryPi: 1.64,
           cerebroplacentalRatio: 1.61
         },
-        sourceConfidence: extractedData.source_confidence || 0.95,
+        sourceConfidence: verified.source_confidence || 0.95,
         imageQualityScore: 0.94,
-        doctorNotes: `Ingested from live system scan (${systemFile?.name || 'Local Ultrasound PACS'}). ${extractedData.clinical_impression || ''}`
+        doctorNotes: `Ingested from live system scan (${systemFile?.name || 'Local Ultrasound PACS'}). ` +
+          `[Verified Calipers]: HC ${hcStatus} (${verifHc}mm), AC ${acStatus} (${verifAc}mm), FL ${flStatus} (${verifFl}mm), ` +
+          `EFW ${efwStatus} (${verifEfw}g), AFI ${afiStatus} (${verifAfi}cm). ` +
+          `${verified.clinical_impression || ''}`
       };
 
       const res = await fetch(`/api/patients/${patient.id}/visits`, {
@@ -325,7 +674,7 @@ export const UltrasoundUploadModal: React.FC<UltrasoundUploadModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto">
-      <div className="bg-white border border-slate-200 rounded-xl w-full max-w-4xl overflow-hidden shadow-2xl my-6 flex flex-col max-h-[92vh]">
+      <div className="bg-white border border-slate-200 rounded-xl w-full max-w-4xl lg:max-w-6xl overflow-hidden shadow-2xl my-6 flex flex-col max-h-[92vh]">
         
         {/* Modal Header */}
         <div className="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
@@ -740,16 +1089,76 @@ export const UltrasoundUploadModal: React.FC<UltrasoundUploadModalProps> = ({
           {/* TAB 3: UNSTRUCTURED TEXT REPORT */}
           {activeTab === 'report-text' && (
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
+              {/* Report File Upload Module */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50 border border-slate-200 rounded-xl p-3.5">
+                <div className="flex-1">
+                  <span className="font-bold text-slate-800 block text-xs">Upload Diagnostic Report File</span>
+                  <span className="text-[10px] text-slate-500 block">Select or drop a Sonographer report file (Plain Text .txt or PDF .pdf)</span>
+                </div>
+                <input
+                  ref={reportFileInputRef}
+                  id="report-file-input"
+                  type="file"
+                  accept=".txt,.pdf,text/plain,application/pdf"
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files[0]) {
+                      handleReportFileSelect(e.target.files[0]);
+                    }
+                  }}
+                />
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => reportFileInputRef.current?.click()}
+                    className="px-3 py-1.5 rounded-lg bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 text-xs font-bold transition flex items-center gap-1.5 shrink-0"
+                  >
+                    <UploadCloud className="w-3.5 h-3.5" />
+                    <span>Choose TXT or PDF</span>
+                  </button>
+                  {reportFile && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setReportFile(null);
+                        setReportText('');
+                      }}
+                      className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 transition"
+                      title="Clear attached report file"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {reportFile && (
+                <div className="p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <FileText className="w-4 h-4 text-emerald-600" />
+                    <span>
+                      Active Document: <strong className="font-mono text-xs">{reportFile.name}</strong> ({Math.round(reportFile.size / 1024)} KB)
+                    </span>
+                  </div>
+                  <span className="text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.2 rounded bg-white text-emerald-700 border border-emerald-100 font-mono">
+                    {reportFile.type === 'application/pdf' ? 'PDF ATTACHED' : 'TXT PARSED'}
+                  </span>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between pt-1">
                 <label className="text-slate-700 font-bold block">
-                  Paste Sonographer Report Text
+                  Report Text Content
                 </label>
                 <div className="flex gap-1.5">
                   {SAMPLE_REPORT_TEMPLATES.map((tmpl, idx) => (
                     <button
                       key={idx}
                       type="button"
-                      onClick={() => setReportText(tmpl.text)}
+                      onClick={() => {
+                        setReportFile(null);
+                        setReportText(tmpl.text);
+                      }}
                       className="px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-medium transition"
                     >
                       Template {idx + 1}
@@ -777,12 +1186,12 @@ export const UltrasoundUploadModal: React.FC<UltrasoundUploadModalProps> = ({
                   {isExtracting ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Parsing Text with Gemini...</span>
+                      <span>Parsing with Gemini OCR...</span>
                     </>
                   ) : (
                     <>
                       <Sparkles className="w-4 h-4 text-teal-200" />
-                      <span>Parse Report Text (Gemini API)</span>
+                      <span>Parse Report Document (Gemini API)</span>
                     </>
                   )}
                 </button>
@@ -800,81 +1209,328 @@ export const UltrasoundUploadModal: React.FC<UltrasoundUploadModalProps> = ({
 
           {/* Extracted Biometric Caliper Results Preview */}
           {extractedData && (
-            <div className="bg-teal-50/50 rounded-xl p-4 border border-teal-200 space-y-3 shadow-xs animate-in fade-in">
-              <div className="flex items-center justify-between">
+            <div className="bg-teal-50/20 rounded-xl p-4 border border-teal-200/80 space-y-4 shadow-sm animate-in fade-in">
+              <div className="flex items-center justify-between bg-teal-50/80 p-3 rounded-lg border border-teal-200">
                 <span className="text-xs font-bold text-teal-900 flex items-center">
-                  <CheckCircle2 className="w-4 h-4 mr-1.5 text-emerald-600" />
-                  Validated Biometric Caliper Extraction (Pydantic / TypeScript Schema)
+                  <CheckCircle2 className="w-4 h-4 mr-1.5 text-emerald-600 animate-pulse" />
+                  AI-Assisted Measurement Ingestion & Verification Workflow
                 </span>
-                <span className="text-[10px] font-mono text-teal-800 bg-white px-2 py-0.5 rounded border border-teal-200">
-                  Confidence: {Math.round((extractedData.source_confidence || 0.94) * 100)}%
+                <span className="text-[10px] font-mono text-teal-800 bg-white px-2.5 py-0.5 rounded border border-teal-200 font-bold">
+                  OCR Confidence: {Math.round((extractedData.source_confidence || 0.94) * 100)}%
                 </span>
               </div>
 
-              {/* Grid of Key Extracted Metrics */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                <div className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-2xs">
-                  <span className="text-[10px] text-slate-500 font-semibold block">Gestational Age</span>
-                  <span className="text-sm font-bold text-slate-900 font-mono">
-                    {extractedData.gestational_age_weeks}w {extractedData.gestational_age_days || 0}d
-                  </span>
+              {/* Side-by-Side Comparison Container */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+                
+                {/* Left Panel: Source Image Viewer with Live SVG Caliper Overlay HUD */}
+                <div className="lg:col-span-5 flex flex-col space-y-3">
+                  <div className="bg-slate-950 rounded-xl p-3 border border-slate-800 text-slate-100 flex flex-col justify-between shadow-lg relative min-h-[320px]">
+                    <div className="flex items-center justify-between text-[10px] text-slate-400 pb-2 border-b border-slate-800 font-mono">
+                      <span className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-teal-500 animate-pulse"></span>
+                        SOURCE ULTRASOUND SCAN
+                      </span>
+                      <span>FPS: 32 • GAIN: 68dB</span>
+                    </div>
+
+                    {/* Scan visual frame with interactive caliper overlay */}
+                    <div className="relative my-2 aspect-[4/3] bg-black rounded-lg overflow-hidden flex items-center justify-center border border-slate-900 shadow-inner group">
+                      <img
+                        src={systemFile?.base64 || DEFAULT_ULTRASOUND_IMAGE}
+                        alt="Verification ultrasound frame"
+                        referrerPolicy="no-referrer"
+                        className="w-full h-full object-contain filter contrast-125 brightness-105"
+                      />
+
+                      {/* Interactive SVG Caliper Overlay */}
+                      {showCaliperOverlay && (
+                        <svg className="absolute inset-0 w-full h-full pointer-events-none select-none">
+                          {/* Draw medical grid */}
+                          <defs>
+                            <pattern id="medical-grid-verify" width="24" height="24" patternUnits="userSpaceOnUse">
+                              <path d="M 24 0 L 0 0 0 24" fill="none" stroke="rgba(20, 184, 166, 0.05)" strokeWidth="0.5" />
+                            </pattern>
+                          </defs>
+                          <rect width="100%" height="100%" fill="url(#medical-grid-verify)" />
+
+                          {/* HC Caliper (Head Circumference - Ellipse in center-left) */}
+                          {(hoveredParameter === 'HC' || hoveredParameter === null) && (
+                            <g className="transition-all duration-300">
+                              <ellipse
+                                cx="45%"
+                                cy="45%"
+                                rx="32%"
+                                ry="25%"
+                                fill="none"
+                                stroke={hoveredParameter === 'HC' ? '#14b8a6' : 'rgba(20, 184, 166, 0.25)'}
+                                strokeWidth={hoveredParameter === 'HC' ? '2.5' : '1.5'}
+                                strokeDasharray="4 3"
+                              />
+                              {/* Caliper cursors */}
+                              <path d="M 11% 45% L 15% 45% M 13% 43% L 13% 47%" stroke="#14b8a6" strokeWidth="2" />
+                              <path d="M 77% 45% L 81% 45% M 79% 43% L 79% 47%" stroke="#14b8a6" strokeWidth="2" />
+                              <text x="45%" y="18%" fill="#14b8a6" fontSize="10" fontWeight="bold" fontFamily="monospace" textAnchor="middle">
+                                {`HC: ${verifHc || extractedData.biometrics?.hc_mm || '—'} mm`}
+                              </text>
+                            </g>
+                          )}
+
+                          {/* AC Caliper (Abdominal Circumference - Ellipse in center-right) */}
+                          {(hoveredParameter === 'AC' || hoveredParameter === null) && (
+                            <g className="transition-all duration-300">
+                              <ellipse
+                                cx="52%"
+                                cy="55%"
+                                rx="28%"
+                                ry="28%"
+                                fill="none"
+                                stroke={hoveredParameter === 'AC' ? '#06b6d4' : 'rgba(6, 182, 212, 0.2)'}
+                                strokeWidth={hoveredParameter === 'AC' ? '2.5' : '1.5'}
+                                strokeDasharray="4 3"
+                              />
+                              {/* Caliper cursors */}
+                              <path d="M 22% 55% L 26% 55% M 24% 53% L 24% 57%" stroke="#06b6d4" strokeWidth="2" />
+                              <path d="M 80% 55% L 84% 55% M 82% 53% L 82% 57%" stroke="#06b6d4" strokeWidth="2" />
+                              <text x="52%" y="87%" fill="#06b6d4" fontSize="10" fontWeight="bold" fontFamily="monospace" textAnchor="middle">
+                                {`AC: ${verifAc || extractedData.biometrics?.ac_mm || '—'} mm`}
+                              </text>
+                            </g>
+                          )}
+
+                          {/* FL Caliper (Femur Length - Straight line at bottom) */}
+                          {(hoveredParameter === 'FL' || hoveredParameter === null) && (
+                            <g className="transition-all duration-300">
+                              <line
+                                x1="30%"
+                                y1="75%"
+                                x2="65%"
+                                y2="70%"
+                                stroke={hoveredParameter === 'FL' ? '#f59e0b' : 'rgba(245, 158, 11, 0.2)'}
+                                strokeWidth={hoveredParameter === 'FL' ? '3' : '1.5'}
+                                strokeDasharray="5 3"
+                              />
+                              {/* Caliper cursors */}
+                              <path d="M 30% 72% L 30% 78% M 27% 75% L 33% 75%" stroke="#f59e0b" strokeWidth="2" />
+                              <path d="M 65% 67% L 65% 73% M 62% 70% L 68% 70%" stroke="#f59e0b" strokeWidth="2" />
+                              <text x="47%" y="65%" fill="#f59e0b" fontSize="10" fontWeight="bold" fontFamily="monospace" textAnchor="middle">
+                                {`FL: ${verifFl || extractedData.biometrics?.fl_mm || '—'} mm`}
+                              </text>
+                            </g>
+                          )}
+
+                          {/* AFI Caliper (Amniotic Fluid Index - Crosshair & Quadrant measurements) */}
+                          {(hoveredParameter === 'AFI' || hoveredParameter === null) && (
+                            <g className="transition-all duration-300">
+                              {/* Quadrant grid */}
+                              <line x1="50%" y1="0" x2="50%" y2="100%" stroke="rgba(255, 255, 255, 0.15)" strokeWidth="1" strokeDasharray="2 2" />
+                              <line x1="0" y1="50%" x2="100%" y2="50%" stroke="rgba(255, 255, 255, 0.15)" strokeWidth="1" strokeDasharray="2 2" />
+                              
+                              {/* Quadrant vertical pockets */}
+                              {/* Q1 vertical depth */}
+                              <line x1="25%" y1="20%" x2="25%" y2="40%" stroke={hoveredParameter === 'AFI' ? '#ec4899' : 'rgba(236, 72, 153, 0.2)'} strokeWidth="2" />
+                              <path d="M 22% 20% L 28% 20%" stroke="#ec4899" strokeWidth="1.5" />
+                              <path d="M 22% 40% L 28% 40%" stroke="#ec4899" strokeWidth="1.5" />
+
+                              {/* Q2 vertical depth */}
+                              <line x1="75%" y1="15%" x2="75%" y2="35%" stroke={hoveredParameter === 'AFI' ? '#ec4899' : 'rgba(236, 72, 153, 0.2)'} strokeWidth="2" />
+                              <path d="M 72% 15% L 78% 15%" stroke="#ec4899" strokeWidth="1.5" />
+                              <path d="M 72% 35% L 78% 35%" stroke="#ec4899" strokeWidth="1.5" />
+
+                              {/* Q3 vertical depth */}
+                              <line x1="25%" y1="60%" x2="25%" y2="80%" stroke={hoveredParameter === 'AFI' ? '#ec4899' : 'rgba(236, 72, 153, 0.2)'} strokeWidth="2" />
+                              <path d="M 22% 60% L 28% 60%" stroke="#ec4899" strokeWidth="1.5" />
+                              <path d="M 22% 80% L 28% 80%" stroke="#ec4899" strokeWidth="1.5" />
+
+                              {/* Q4 vertical depth */}
+                              <line x1="75%" y1="55%" x2="75%" y2="78%" stroke={hoveredParameter === 'AFI' ? '#ec4899' : 'rgba(236, 72, 153, 0.2)'} strokeWidth="2" />
+                              <path d="M 72% 55% L 78% 55%" stroke="#ec4899" strokeWidth="1.5" />
+                              <path d="M 72% 78% L 78% 78%" stroke="#ec4899" strokeWidth="1.5" />
+
+                              <text x="15%" y="12%" fill="#ec4899" fontSize="9" fontWeight="bold" fontFamily="monospace">
+                                {`AFI: ${verifAfi || extractedData.amniotic_fluid_index_cm || '—'} cm`}
+                              </text>
+                            </g>
+                          )}
+                        </svg>
+                      )}
+
+                      {/* General HUD */}
+                      <div className="absolute inset-0 pointer-events-none p-2.5 flex flex-col justify-between text-[9px] font-mono text-teal-400/80 select-none">
+                        <div className="flex justify-between items-start">
+                          <div className="bg-slate-950/70 px-1.5 py-0.5 rounded border border-slate-800/80 backdrop-blur-3xs">
+                            <span className="text-slate-300">MRN: </span>
+                            <span className="text-teal-300 font-bold">{patient.mrn}</span>
+                          </div>
+                          <div className="bg-slate-950/70 px-1.5 py-0.5 rounded border border-slate-800/80 backdrop-blur-3xs text-right">
+                            <span className="text-slate-300">GA: </span>
+                            <span className="text-teal-300 font-bold">{extractedData.gestational_age_weeks}w {extractedData.gestational_age_days || 0}d</span>
+                          </div>
+                        </div>
+
+                        <div className="flex justify-between items-end">
+                          <div className="space-y-0.5 bg-slate-950/70 p-1.5 rounded border border-slate-800/80 backdrop-blur-3xs text-[8px]">
+                            <div className={hoveredParameter === 'HC' ? 'text-teal-400 font-bold' : 'text-slate-400'}>HC Caliper: Active</div>
+                            <div className={hoveredParameter === 'AC' ? 'text-cyan-400 font-bold' : 'text-slate-400'}>AC Caliper: Active</div>
+                            <div className={hoveredParameter === 'FL' ? 'text-amber-400 font-bold' : 'text-slate-400'}>FL Caliper: Active</div>
+                            <div className={hoveredParameter === 'AFI' ? 'text-pink-400 font-bold' : 'text-slate-400'}>AFI Quadrants: Active</div>
+                          </div>
+                          <div className="bg-slate-950/70 px-1.5 py-1 rounded border border-slate-800/80 text-amber-300 font-bold backdrop-blur-3xs">
+                            HUD ACTIVE
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-900 text-[10px]">
+                      <span className="text-slate-400">Quality Index: <strong className="text-emerald-400">OPTIMAL (94%)</strong></span>
+                      <button
+                        type="button"
+                        onClick={() => setShowCaliperOverlay(!showCaliperOverlay)}
+                        className="px-2.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-bold transition border border-slate-700"
+                      >
+                        {showCaliperOverlay ? 'Hide HUD' : 'Show HUD'}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg flex items-start gap-2">
+                    <Info className="w-3.5 h-3.5 text-teal-600 shrink-0 mt-0.5" />
+                    <p className="text-[10px] text-slate-500 leading-normal">
+                      Hover over any row in the verification table on the right to focus its ultrasound caliper placement. Confirm, edit, or reject the parsed value as necessary.
+                    </p>
+                  </div>
                 </div>
 
-                <div className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-2xs">
-                  <span className="text-[10px] text-slate-500 font-semibold block">Amniotic Fluid (AFI)</span>
-                  <span className={`text-sm font-bold font-mono ${
-                    extractedData.amniotic_fluid_index_cm < 5 ? 'text-rose-700' : 'text-teal-700'
-                  }`}>
-                    {extractedData.amniotic_fluid_index_cm} cm
-                  </span>
-                  <span className="text-[10px] text-slate-400 block mt-0.5">
-                    SDP: {extractedData.maximum_vertical_pocket_cm || 3.8} cm
-                  </span>
-                </div>
+                {/* Right Panel: Extracted Values Table & Actions */}
+                <div className="lg:col-span-7 space-y-3.5 flex flex-col justify-between">
+                  
+                  {/* Grid of other clinical metadata */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                    <div className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-3xs flex flex-col justify-between">
+                      <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">GA Range</span>
+                      <span className="text-xs font-bold text-slate-900 font-mono mt-0.5">
+                        {extractedData.gestational_age_weeks}w {extractedData.gestational_age_days || 0}d
+                      </span>
+                    </div>
 
-                <div className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-2xs">
-                  <span className="text-[10px] text-slate-500 font-semibold block">Hadlock EFW & %ile</span>
-                  <span className="text-sm font-bold text-indigo-700 font-mono">
-                    {extractedData.estimated_fetal_weight_g}g
-                  </span>
-                  <span className="text-[10px] text-indigo-500 block mt-0.5">
-                    {extractedData.growth_percentile}th percentile
-                  </span>
-                </div>
+                    <div className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-3xs flex flex-col justify-between">
+                      <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">Heart Rate & Pres</span>
+                      <span className="text-xs font-bold text-slate-900 font-mono mt-0.5">
+                        {extractedData.fetal_heart_rate_bpm || 140} bpm • <span className="capitalize">{extractedData.presentation || 'cephalic'}</span>
+                      </span>
+                    </div>
 
-                <div className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-2xs">
-                  <span className="text-[10px] text-slate-500 font-semibold block">FHR & Presentation</span>
-                  <span className="text-sm font-bold text-slate-900 font-mono">
-                    {extractedData.fetal_heart_rate_bpm || 140} bpm
-                  </span>
-                  <span className="text-[10px] text-slate-500 capitalize block mt-0.5">
-                    {extractedData.presentation || 'Cephalic'}
-                  </span>
-                </div>
-              </div>
+                    <div className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-3xs flex flex-col justify-between">
+                      <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block">Doppler CPR Index</span>
+                      <span className="text-xs font-bold text-teal-700 font-mono mt-0.5">
+                        {extractedData.doppler?.cerebroplacental_ratio || '1.68'}
+                      </span>
+                    </div>
+                  </div>
 
-              {/* Calipers Row */}
-              {extractedData.biometrics && (
-                <div className="bg-white p-2.5 rounded-lg border border-slate-200 shadow-2xs flex flex-wrap items-center justify-between gap-2 text-[11px]">
-                  <span className="text-slate-500 font-semibold">Calipers:</span>
-                  <span className="font-mono text-slate-800">BPD: <strong>{extractedData.biometrics.bpd_mm}mm</strong></span>
-                  <span className="font-mono text-slate-800">HC: <strong>{extractedData.biometrics.hc_mm}mm</strong></span>
-                  <span className="font-mono text-slate-800">AC: <strong>{extractedData.biometrics.ac_mm}mm</strong></span>
-                  <span className="font-mono text-slate-800">FL: <strong>{extractedData.biometrics.fl_mm}mm</strong></span>
-                  {extractedData.doppler && (
-                    <span className="font-mono text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded">
-                      CPR: <strong>{extractedData.doppler.cerebroplacental_ratio || 1.6}</strong>
-                    </span>
+                  {/* Clinician Verification Table */}
+                  <div className="bg-white border border-slate-200 rounded-xl p-3.5 space-y-3 shadow-xs">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-100 pb-2.5 gap-2">
+                      <div>
+                        <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">Gemini Vision Extraction Table</h4>
+                        <p className="text-[10px] text-slate-500 font-medium font-sans">Verify or override AI-assisted sonography calipers before clinical ingestion</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleConfirmAll}
+                        className="cursor-pointer inline-flex items-center space-x-1 px-3 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded-lg border border-emerald-200 transition-colors shrink-0"
+                      >
+                        <Check className="w-3.5 h-3.5 mr-0.5 text-emerald-600" />
+                        <span>Confirm All</span>
+                      </button>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                      <table className="w-full border-collapse text-left text-xs text-slate-700">
+                        <thead>
+                          <tr className="border-b border-slate-200 bg-slate-50/75 text-[9px] font-bold uppercase text-slate-500 tracking-wider">
+                            <th className="p-2">Biometric</th>
+                            <th className="p-2">Parsed</th>
+                            <th className="p-2">Verified Value</th>
+                            <th className="p-2 text-center">Status</th>
+                            <th className="p-2 text-right">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 bg-white">
+                          {/* Parameter: HC */}
+                          {renderVerificationRow(
+                            'HC',
+                            'Head Circumference',
+                            'mm',
+                            extractedData.biometrics?.hc_mm || 'Not found',
+                            verifHc,
+                            setVerifHc,
+                            hcStatus,
+                            setHcStatus
+                          )}
+
+                          {/* Parameter: AC */}
+                          {renderVerificationRow(
+                            'AC',
+                            'Abdominal Circumference',
+                            'mm',
+                            extractedData.biometrics?.ac_mm || 'Not found',
+                            verifAc,
+                            setVerifAc,
+                            acStatus,
+                            setAcStatus
+                          )}
+
+                          {/* Parameter: FL */}
+                          {renderVerificationRow(
+                            'FL',
+                            'Femur Length',
+                            'mm',
+                            extractedData.biometrics?.fl_mm || 'Not found',
+                            verifFl,
+                            setVerifFl,
+                            flStatus,
+                            setFlStatus
+                          )}
+
+                          {/* Parameter: EFW */}
+                          {renderVerificationRow(
+                            'EFW',
+                            'Estimated Fetal Weight',
+                            'g',
+                            extractedData.estimated_fetal_weight_g || 'Not found',
+                            verifEfw,
+                            setVerifEfw,
+                            efwStatus,
+                            setEfwStatus
+                          )}
+
+                          {/* Parameter: AFI */}
+                          {renderVerificationRow(
+                            'AFI',
+                            'Amniotic Fluid Index',
+                            'cm',
+                            extractedData.amniotic_fluid_index_cm || 'Not found',
+                            verifAfi,
+                            setVerifAfi,
+                            afiStatus,
+                            setAfiStatus
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {extractedData.clinical_impression && (
+                    <div className="text-[10px] text-slate-700 bg-slate-50 p-2.5 rounded-lg border border-slate-200 shadow-3xs leading-relaxed">
+                      <span className="text-slate-400 block text-[9px] font-bold uppercase tracking-wider mb-0.5">AI Clinical Impression</span>
+                      {extractedData.clinical_impression}
+                    </div>
                   )}
-                </div>
-              )}
 
-              {extractedData.clinical_impression && (
-                <div className="text-[11px] text-slate-700 bg-white p-2.5 rounded-lg border border-slate-200 shadow-2xs">
-                  <span className="text-slate-400 block text-[10px] font-semibold">AI Clinical Impression:</span>
-                  {extractedData.clinical_impression}
                 </div>
-              )}
+              </div>
             </div>
           )}
 
@@ -898,8 +1554,9 @@ export const UltrasoundUploadModal: React.FC<UltrasoundUploadModalProps> = ({
               <button
                 id="btn-send-to-live-studio"
                 onClick={() => {
-                  if (extractedData) {
-                    onSendToStudio(extractedData);
+                  const verified = getVerifiedData();
+                  if (verified) {
+                    onSendToStudio(verified);
                     onClose();
                   }
                 }}

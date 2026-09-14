@@ -35,7 +35,11 @@ import {
   FileImage,
   Check,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Pill,
+  RefreshCw,
+  CheckCircle,
+  ChevronRight
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -2496,6 +2500,7 @@ export const LiveInputStudioView: React.FC<LiveInputStudioViewProps> = ({
       {isPrintModalOpen && (
         <ClinicalReportPrintModal
           twin={prospectiveTwin}
+          currentUser={currentUser}
           onClose={() => setIsPrintModalOpen(false)}
         />
       )}
@@ -2512,22 +2517,185 @@ interface NewPatientModalProps {
 }
 
 const NewPatientModal: React.FC<NewPatientModalProps> = ({ onClose, onPatientCreated, currentUser }) => {
+  const [step, setStep] = useState(1); // Steps 1 to 4 are wizard steps, Step 5 is the verification/success progress animation
+
+  // --- Step 1: Patient Details & Profile ---
   const [name, setName] = useState('');
+  const [mrn, setMrn] = useState(`PT-${Math.floor(100000 + Math.random() * 900000)}`);
+  const [dob, setDob] = useState('');
   const [age, setAge] = useState<number>(29);
-  const [maternalBmi, setMaternalBmi] = useState<number>(24.5);
-  const [mrn, setMrn] = useState(`MRN-${Math.floor(100000 + Math.random() * 900000)}`);
+  const [contact, setContact] = useState('');
+  const [hospital, setHospital] = useState('St. Jude Maternal-Fetal Medicine Center');
+  const [attendingClinician, setAttendingClinician] = useState('Dr. Alistair Vance, MD');
+
+  const [height, setHeight] = useState<number>(165);
+  const [weight, setWeight] = useState<number>(66);
+  const [maternalBmi, setMaternalBmi] = useState<number>(24.2);
   const [gravidity, setGravidity] = useState<number>(2);
   const [parity, setParity] = useState<number>(1);
+
+  // --- Step 2: Pregnancy Details & Obstetric Risks ---
   const [currentGaWeeks, setCurrentGaWeeks] = useState<number>(24);
   const [currentGaDays, setCurrentGaDays] = useState<number>(0);
-  const [lmp, setLmp] = useState<string>(new Date(Date.now() - 168 * 86400000).toISOString().split('T')[0]);
-  const [edd, setEdd] = useState<string>(new Date(Date.now() + 112 * 86400000).toISOString().split('T')[0]);
-  const [notes, setNotes] = useState('Enrolled via Live Ultrasound Studio.');
-  const [includeBaseline, setIncludeBaseline] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
+  const [edd, setEdd] = useState<string>('');
+  const [multiplePregnancy, setMultiplePregnancy] = useState('Singleton');
+  const [ivf, setIvf] = useState('No');
+  
+  // Obstetric risks
+  const [prevPreterm, setPrevPreterm] = useState('No');
+  const [prevFgr, setPrevFgr] = useState('No');
+  const [prevStillbirth, setPrevStillbirth] = useState('No');
+  const [prevPreeclampsia, setPrevPreeclampsia] = useState('No');
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // --- Step 3: Baseline Clinical Data & Ultrasound ---
+  const [systolicBp, setSystolicBp] = useState<number>(118);
+  const [diastolicBp, setDiastolicBp] = useState<number>(76);
+  const [maternalHr, setMaternalHr] = useState<number>(78);
+  const [hemoglobin, setHemoglobin] = useState<number>(12.2);
+  const [platelets, setPlatelets] = useState<number>(210);
+  const [diabetesStatus, setDiabetesStatus] = useState('None');
+  const [hypertensionStatus, setHypertensionStatus] = useState('None');
+  const [clinicalNotes, setClinicalNotes] = useState('Enrolled via Live Ultrasound Studio.');
+
+  // Baseline Ultrasound Collapsible
+  const [isUltrasoundExpanded, setIsUltrasoundExpanded] = useState(true);
+  const [scanDate, setScanDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [scanType, setScanType] = useState('Routine');
+
+  // Fetal Biometry
+  const [bpd, setBpd] = useState<string>('60');
+  const [hc, setHc] = useState<string>('222');
+  const [ac, setAc] = useState<string>('198');
+  const [fl, setFl] = useState<string>('43');
+  const [crl, setCrl] = useState<string>('');
+  const [efw, setEfw] = useState<string>('670');
+  const [growthPercentile, setGrowthPercentile] = useState<string>('50');
+
+  // Amniotic Fluid
+  const [afi, setAfi] = useState<string>('12.5');
+  const [sdp, setSdp] = useState<string>('4.6');
+
+  // Fetal Status
+  const [fhr, setFhr] = useState<string>('144');
+  const [presentation, setPresentation] = useState('cephalic');
+  const [placentaLocation, setPlacentaLocation] = useState('posterior');
+  const [cervicalLength, setCervicalLength] = useState<string>('38');
+
+  // Doppler
+  const [uaPi, setUaPi] = useState<string>('0.95');
+  const [uaRi, setUaRi] = useState<string>('0.62');
+  const [uaSd, setUaSd] = useState<string>('2.5');
+  const [mcaPi, setMcaPi] = useState<string>('1.60');
+  const [mcaRi, setMcaRi] = useState<string>('0.75');
+  const [mcaPsv, setMcaPsv] = useState<string>('35');
+  const [cpr, setCpr] = useState<string>('1.68');
+  const [dvPi, setDvPi] = useState<string>('0.55');
+
+  // OCR Assisted Extraction Mock
+  const [isOcrAnalyzing, setIsOcrAnalyzing] = useState(false);
+  const [ocrResults, setOcrResults] = useState<any[] | null>(null);
+  const [reportFile, setReportFile] = useState<File | null>(null);
+
+  // --- Step 4: Medications & Support Profile ---
+  const [medicationsList, setMedicationsList] = useState<any[]>([]);
+  const [noMedications, setNoMedications] = useState(false);
+
+  const [emotionalState, setEmotionalState] = useState('Calm');
+  const [supportPreference, setSupportPreference] = useState('Detailed explanation');
+
+  const [generateSyntheticBaseline, setGenerateSyntheticBaseline] = useState(true);
+  const [baselineSource, setBaselineSource] = useState('Manual measurements'); // 'Uploaded ultrasound', 'Manual measurements', 'Normative baseline'
+
+  // --- Success & Transition States ---
+  const [activeAnimationIndex, setActiveAnimationIndex] = useState(0);
+  const [isSaving, setIsSaving] = useState(false);
+  const [createdPatient, setCreatedPatient] = useState<Patient | null>(null);
+
+  // --- Effect Hooks for Auto-calculation ---
+  // 1. DOB -> Maternal Age auto-calc
+  useEffect(() => {
+    if (dob) {
+      const birthDate = new Date(dob);
+      const today = new Date();
+      let calcAge = today.getFullYear() - birthDate.getFullYear();
+      const m = today.getMonth() - birthDate.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+         calcAge--;
+      }
+      if (calcAge > 0 && calcAge < 100) {
+        setAge(calcAge);
+      }
+    }
+  }, [dob]);
+
+  // 2. Height/Weight -> BMI auto-calc
+  useEffect(() => {
+    if (height > 0 && weight > 0) {
+      const hMeters = height / 100;
+      const calcBmi = weight / (hMeters * hMeters);
+      setMaternalBmi(parseFloat(calcBmi.toFixed(1)));
+    }
+  }, [height, weight]);
+
+  // 3. Gestational Age -> Expected EDD default calculator
+  useEffect(() => {
+    const elapsedDays = currentGaWeeks * 7 + currentGaDays;
+    const lmpDate = new Date(Date.now() - elapsedDays * 86400000);
+    const calculatedEdd = new Date(lmpDate.getTime() + 280 * 86400000);
+    setEdd(calculatedEdd.toISOString().split('T')[0]);
+  }, [currentGaWeeks, currentGaDays]);
+
+  // Consistency warning for EDD vs GA
+  const elapsedDays = currentGaWeeks * 7 + currentGaDays;
+  const expectedLmpDate = new Date(Date.now() - elapsedDays * 86400000);
+  const expectedEddDate = new Date(expectedLmpDate.getTime() + 280 * 86400000);
+  const eddDiffDays = edd ? Math.abs((new Date(edd).getTime() - expectedEddDate.getTime()) / 86400000) : 0;
+  const isEddInconsistent = edd && eddDiffDays > 7;
+
+  // Simulate report extraction with Gemini Vision
+  const handleSimulateOcr = () => {
+    setIsOcrAnalyzing(true);
+    setOcrResults(null);
+    setTimeout(() => {
+      setIsOcrAnalyzing(false);
+      setOcrResults([
+        { field: 'HC', extracted: '295 mm', confidence: '96%', value: '295' },
+        { field: 'AC', extracted: '278 mm', confidence: '94%', value: '278' },
+        { field: 'FL', extracted: '62 mm', confidence: '97%', value: '62' },
+        { field: 'EFW', extracted: '1,790 g', confidence: '91%', value: '1790' },
+        { field: 'AFI', extracted: '12.8 cm', confidence: '95%', value: '12.8' },
+      ]);
+    }, 1800);
+  };
+
+  const handleConfirmOcr = () => {
+    if (!ocrResults) return;
+    setHc('295');
+    setAc('278');
+    setFl('62');
+    setEfw('1790');
+    setAfi('12.8');
+    setGrowthPercentile('50'); // standard default
+    setOcrResults(null);
+  };
+
+  const handleAddMedication = () => {
+    setMedicationsList(prev => [
+      ...prev,
+      { name: '', dose: '', frequency: 'Once daily', startDate: new Date().toISOString().split('T')[0], stopDate: '', indication: '', adherence: 'Good' }
+    ]);
+  };
+
+  const handleRemoveMedication = (index: number) => {
+    setMedicationsList(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleUpdateMedication = (index: number, key: string, value: any) => {
+    setMedicationsList(prev => prev.map((med, i) => i === index ? { ...med, [key]: value } : med));
+  };
+
+  // Submit and launch digital twin initialization checklist
+  const handleSubmit = async () => {
     if (!name.trim()) return;
     setIsSaving(true);
     try {
@@ -2540,23 +2708,32 @@ const NewPatientModal: React.FC<NewPatientModalProps> = ({ onClose, onPatientCre
         parity,
         currentGestationalAgeWeeks: currentGaWeeks,
         currentGestationalAgeDays: currentGaDays,
-        lmp,
+        lmp: expectedLmpDate.toISOString().split('T')[0],
         edd,
-        notes,
+        notes: clinicalNotes,
         assignedDoctorId: currentUser.id,
         assignedDoctorName: currentUser.name
       };
 
-      if (includeBaseline) {
+      // Set baseline scan data
+      if (generateSyntheticBaseline) {
         payload.initialVisit = {
+          date: scanDate,
           gestationalAgeWeeks: currentGaWeeks,
           gestationalAgeDays: currentGaDays,
-          estimatedFetalWeight_g: getExpected50thEfw(currentGaWeeks, currentGaDays),
-          growthPercentile: 50,
-          amnioticFluidIndex_cm: 12.5,
-          singleDeepestPocket_cm: 4.6,
-          fetalHeartRate_bpm: 144,
-          biometrics: { hc_mm: 222, ac_mm: 198, fl_mm: 43, bpd_mm: 60 }
+          estimatedFetalWeight_g: baselineSource === 'Normative baseline' ? getExpected50thEfw(currentGaWeeks, currentGaDays) : Number(efw) || 670,
+          growthPercentile: Number(growthPercentile) || 50,
+          amnioticFluidIndex_cm: Number(afi) || 12.5,
+          singleDeepestPocket_cm: Number(sdp) || 4.6,
+          fetalHeartRate_bpm: Number(fhr) || 144,
+          presentation: presentation,
+          placentaLocation: placentaLocation,
+          biometrics: {
+            hc_mm: Number(hc) || 220,
+            ac_mm: Number(ac) || 198,
+            fl_mm: Number(fl) || 43,
+            bpd_mm: Number(bpd) || 60
+          }
         };
       }
 
@@ -2572,7 +2749,49 @@ const NewPatientModal: React.FC<NewPatientModalProps> = ({ onClose, onPatientCre
 
       if (!res.ok) throw new Error('Failed to create patient');
       const data = await res.json();
-      onPatientCreated(data.patient);
+      const patientId = data.patient.id;
+
+      // Create medications sequentially if they exist
+      if (!noMedications && medicationsList.length > 0) {
+        for (const m of medicationsList) {
+          if (!m.name) continue;
+          await fetch(`/api/patients/${patientId}/medications`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-user-id': currentUser.id,
+              'x-user-role': currentUser.role
+            },
+            body: JSON.stringify({
+              medicationName: m.name,
+              dose: m.dose,
+              frequency: m.frequency,
+              startDate: m.startDate,
+              stopDate: m.stopDate || undefined,
+              gestationalAgeStartWeeks: currentGaWeeks - 4,
+              indication: m.indication,
+              exposureStatus: 'current',
+              confidence: 'Verified'
+            })
+          });
+        }
+      }
+
+      setCreatedPatient(data.patient);
+      
+      // Advance to Step 5 (Checks & Verification Checklist animation)
+      setStep(5);
+      
+      // Animate checklist checkboxes checking off sequentially
+      let idx = 0;
+      const interval = setInterval(() => {
+        idx++;
+        setActiveAnimationIndex(idx);
+        if (idx >= 6) {
+          clearInterval(interval);
+        }
+      }, 700);
+
     } catch (err: any) {
       alert(err.message || 'Error creating patient');
     } finally {
@@ -2580,152 +2799,1172 @@ const NewPatientModal: React.FC<NewPatientModalProps> = ({ onClose, onPatientCre
     }
   };
 
+  // Checklist stages
+  const CHECKLIST_STAGES = [
+    'PATIENT ENROLLED',
+    'BASELINE VALIDATION',
+    'DIGITAL TWIN INITIALIZED',
+    'VISIT 01 CREATED',
+    'TRAJECTORY ENGINE ACTIVE',
+    'WAITING FOR NEXT SCAN'
+  ];
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto">
-      <div className="bg-white border border-slate-200 rounded-xl w-full max-w-lg overflow-hidden shadow-2xl my-8">
-        <div className="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
-          <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 rounded bg-teal-50 flex items-center justify-center border border-teal-200 text-teal-700">
-              <Plus className="w-4 h-4" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto select-none">
+      <div className="bg-white border border-slate-300 rounded-xl w-full max-w-2xl overflow-hidden shadow-2xl my-8 flex flex-col max-h-[90vh]">
+        
+        {/* Header (Steps 1 to 4) */}
+        {step <= 4 && (
+          <div className="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50 shrink-0">
+            <div className="flex items-center space-x-2">
+              <div className="w-8 h-8 rounded bg-teal-50 flex items-center justify-center border border-teal-200 text-teal-700 font-bold shrink-0">
+                <Plus className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wide">Enroll New Patient into Live Twin Stream</h3>
+                <p className="text-[11px] text-slate-500">Establish the longitudinal pregnancy profile before the first AI assessment</p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-sm font-bold text-slate-900">Enrol New Patient into Live Twin Stream</h3>
-              <p className="text-[11px] text-slate-500">Establishes longitudinal pregnancy digital twin profile</p>
+            <button onClick={onClose} className="p-1 rounded text-slate-400 hover:text-slate-700 transition cursor-pointer">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
+        {/* Wizard Step Stepper Indicator (Steps 1 to 4) */}
+        {step <= 4 && (
+          <div className="bg-slate-100 border-b border-slate-200 p-3 flex justify-between items-center text-xs text-slate-500 font-semibold px-6 shrink-0">
+            <div className="flex items-center space-x-2">
+              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] ${step === 1 ? 'bg-teal-700 text-white' : step > 1 ? 'bg-teal-100 text-teal-800' : 'bg-slate-200'}`}>1</span>
+              <span className={step === 1 ? 'text-teal-900 font-bold' : step > 1 ? 'text-teal-800' : ''}>Identity & Profile</span>
+            </div>
+            <div className="w-8 h-px bg-slate-300" />
+            <div className="flex items-center space-x-2">
+              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] ${step === 2 ? 'bg-teal-700 text-white' : step > 2 ? 'bg-teal-100 text-teal-800' : 'bg-slate-200'}`}>2</span>
+              <span className={step === 2 ? 'text-teal-900 font-bold' : step > 2 ? 'text-teal-800' : ''}>Pregnancy & Risks</span>
+            </div>
+            <div className="w-8 h-px bg-slate-300" />
+            <div className="flex items-center space-x-2">
+              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] ${step === 3 ? 'bg-teal-700 text-white' : step > 3 ? 'bg-teal-100 text-teal-800' : 'bg-slate-200'}`}>3</span>
+              <span className={step === 3 ? 'text-teal-900 font-bold' : step > 3 ? 'text-teal-800' : ''}>Baseline Ultrasound</span>
+            </div>
+            <div className="w-8 h-px bg-slate-300" />
+            <div className="flex items-center space-x-2">
+              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] ${step === 4 ? 'bg-teal-700 text-white' : 'bg-slate-200'}`}>4</span>
+              <span className={step === 4 ? 'text-teal-900 font-bold' : ''}>Meds & Initialize</span>
             </div>
           </div>
-          <button onClick={onClose} className="p-1 rounded text-slate-400 hover:text-slate-700">
-            <X className="w-4 h-4" />
-          </button>
+        )}
+
+        {/* Scrollable Form Body Container */}
+        <div className="p-5 overflow-y-auto flex-1">
+          {step === 1 && (
+            <div className="space-y-4">
+              <div>
+                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2 border-b border-slate-150 pb-1 flex items-center gap-1.5">
+                  <Activity className="w-3.5 h-3.5 text-teal-700" />
+                  <span>Patient Identity & Record Details</span>
+                </h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="col-span-2">
+                    <label htmlFor="modal-name" className="block text-[11px] font-bold text-slate-700 mb-0.5">Patient Full Name <span className="text-rose-500">*</span></label>
+                    <input
+                      id="modal-name"
+                      type="text"
+                      required
+                      placeholder="e.g. Maria Gonzalez"
+                      value={name}
+                      onChange={e => setName(e.target.value)}
+                      className="w-full text-xs border border-slate-300 rounded-lg p-2 focus:outline-none focus:border-teal-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="modal-mrn" className="block text-[11px] font-bold text-slate-700 mb-0.5">MRN / Medical Record # <span className="text-rose-500">*</span></label>
+                    <input
+                      id="modal-mrn"
+                      type="text"
+                      required
+                      value={mrn}
+                      onChange={e => setMrn(e.target.value)}
+                      className="w-full text-xs font-mono border border-slate-300 rounded-lg p-2 focus:outline-none focus:border-teal-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="modal-dob" className="block text-[11px] font-bold text-slate-700 mb-0.5">Date of Birth <span className="text-slate-400">(Optional)</span></label>
+                    <input
+                      id="modal-dob"
+                      type="date"
+                      value={dob}
+                      onChange={e => setDob(e.target.value)}
+                      className="w-full text-xs border border-slate-300 rounded-lg p-2 focus:outline-none focus:border-teal-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="modal-age" className="block text-[11px] font-bold text-slate-700 mb-0.5">Maternal Age <span className="text-rose-500">*</span></label>
+                    <input
+                      id="modal-age"
+                      type="number"
+                      required
+                      value={age}
+                      onChange={e => setAge(Number(e.target.value))}
+                      className="w-full text-xs border border-slate-300 rounded-lg p-2 focus:outline-none focus:border-teal-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="modal-contact" className="block text-[11px] font-bold text-slate-700 mb-0.5">Contact / Phone <span className="text-slate-400">(Optional)</span></label>
+                    <input
+                      id="modal-contact"
+                      type="text"
+                      placeholder="e.g. +1 (555) 019-2834"
+                      value={contact}
+                      onChange={e => setContact(e.target.value)}
+                      className="w-full text-xs border border-slate-300 rounded-lg p-2 focus:outline-none focus:border-teal-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="modal-hospital" className="block text-[11px] font-bold text-slate-700 mb-0.5">Hospital / Care Center</label>
+                    <select
+                      id="modal-hospital"
+                      value={hospital}
+                      onChange={e => setHospital(e.target.value)}
+                      className="w-full text-xs border border-slate-300 bg-white rounded-lg p-2 focus:outline-none focus:border-teal-500"
+                    >
+                      <option value="St. Jude Maternal-Fetal Medicine Center">St. Jude Maternal-Fetal Medicine Center</option>
+                      <option value="Apex Health Systems Central Review">Apex Health Systems Central Review</option>
+                      <option value="St. Jude Women's Hospital">St. Jude Women's Hospital</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label htmlFor="modal-clinician" className="block text-[11px] font-bold text-slate-700 mb-0.5">Attending Clinician</label>
+                    <select
+                      id="modal-clinician"
+                      value={attendingClinician}
+                      onChange={e => setAttendingClinician(e.target.value)}
+                      className="w-full text-xs border border-slate-300 bg-white rounded-lg p-2 focus:outline-none focus:border-teal-500"
+                    >
+                      <option value="Dr. Alistair Vance, MD">Dr. Alistair Vance, MD</option>
+                      <option value="Dr. Marcus Reed, MD">Dr. Marcus Reed, MD</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2 border-b border-slate-150 pb-1 flex items-center gap-1.5 pt-2">
+                  <Activity className="w-3.5 h-3.5 text-teal-700" />
+                  <span>Maternal Physical Profile</span>
+                </h4>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label htmlFor="modal-height" className="block text-[11px] font-bold text-slate-700 mb-0.5">Height (cm)</label>
+                    <input
+                      id="modal-height"
+                      type="number"
+                      value={height}
+                      onChange={e => setHeight(Number(e.target.value))}
+                      className="w-full text-xs border border-slate-300 rounded-lg p-2 focus:outline-none focus:border-teal-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="modal-weight" className="block text-[11px] font-bold text-slate-700 mb-0.5">Weight (kg)</label>
+                    <input
+                      id="modal-weight"
+                      type="number"
+                      value={weight}
+                      onChange={e => setWeight(Number(e.target.value))}
+                      className="w-full text-xs border border-slate-300 rounded-lg p-2 focus:outline-none focus:border-teal-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="modal-bmi" className="block text-[11px] font-bold text-slate-700 mb-0.5">Maternal BMI (kg/m²)</label>
+                    <input
+                      id="modal-bmi"
+                      type="number"
+                      step="0.1"
+                      disabled
+                      value={maternalBmi}
+                      className="w-full text-xs border border-slate-200 bg-slate-50 text-slate-600 font-bold rounded-lg p-2 cursor-not-allowed"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="modal-g" className="block text-[11px] font-bold text-slate-700 mb-0.5">Gravidity (G)</label>
+                    <input
+                      id="modal-g"
+                      type="number"
+                      min="1"
+                      value={gravidity}
+                      onChange={e => setGravidity(Number(e.target.value))}
+                      className="w-full text-xs border border-slate-300 rounded-lg p-2 focus:outline-none focus:border-teal-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label htmlFor="modal-p" className="block text-[11px] font-bold text-slate-700 mb-0.5">Parity (P)</label>
+                    <input
+                      id="modal-p"
+                      type="number"
+                      min="0"
+                      value={parity}
+                      onChange={e => setParity(Number(e.target.value))}
+                      className="w-full text-xs border border-slate-300 rounded-lg p-2 focus:outline-none focus:border-teal-500"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {step === 2 && (
+            <div className="space-y-4">
+              <div>
+                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2 border-b border-slate-150 pb-1 flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5 text-teal-700" />
+                  <span>Pregnancy Details & Gestational Boundaries</span>
+                </h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">Gestational Age</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="flex items-center space-x-1">
+                        <input
+                          type="number"
+                          min="18"
+                          max="41"
+                          value={currentGaWeeks}
+                          onChange={e => setCurrentGaWeeks(Number(e.target.value))}
+                          className="w-full text-xs font-mono border border-slate-300 rounded-lg p-2 focus:outline-none focus:border-teal-500"
+                          title="Weeks"
+                        />
+                        <span className="text-[10px] text-slate-500 font-bold uppercase">W</span>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <input
+                          type="number"
+                          min="0"
+                          max="6"
+                          value={currentGaDays}
+                          onChange={e => setCurrentGaDays(Number(e.target.value))}
+                          className="w-full text-xs font-mono border border-slate-300 rounded-lg p-2 focus:outline-none focus:border-teal-500"
+                          title="Days"
+                        />
+                        <span className="text-[10px] text-slate-500 font-bold uppercase">D</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="modal-edd" className="block text-[11px] font-bold text-slate-700 mb-1">EDD (Estimated Delivery Date)</label>
+                    <input
+                      id="modal-edd"
+                      type="date"
+                      value={edd}
+                      onChange={e => setEdd(e.target.value)}
+                      className="w-full text-xs border border-slate-300 rounded-lg p-2 focus:outline-none focus:border-teal-500"
+                    />
+                  </div>
+
+                  <div className="col-span-2">
+                    <div className="flex justify-between items-center bg-teal-50 p-2 rounded border border-teal-150 text-teal-900 font-bold text-xs select-none">
+                      <span>Calculated Gestational Cohort:</span>
+                      <span className="bg-teal-700 text-white font-mono font-black text-sm px-3 py-0.5 rounded">
+                        {currentGaWeeks}W {currentGaDays}D
+                      </span>
+                    </div>
+                    {isEddInconsistent && (
+                      <div className="mt-1.5 flex items-center space-x-1.5 text-[11px] text-amber-800 bg-amber-50 p-2 rounded border border-amber-200">
+                        <AlertTriangle className="w-3.5 h-3.5 text-amber-700" />
+                        <span className="font-medium">⚠️ Gestational age and EDD appear inconsistent. Expected EDD: {expectedEddDate.toISOString().split('T')[0]}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <label htmlFor="modal-pregnancy-type" className="block text-[11px] font-bold text-slate-700 mb-1">Pregnancy Count</label>
+                    <select
+                      id="modal-pregnancy-type"
+                      value={multiplePregnancy}
+                      onChange={e => setMultiplePregnancy(e.target.value)}
+                      className="w-full text-xs border border-slate-300 bg-white rounded-lg p-2 focus:outline-none focus:border-teal-500"
+                    >
+                      <option value="Singleton">Singleton</option>
+                      <option value="Twins">Multiple (Twins)</option>
+                      <option value="Triplets">Multiple (Triplets)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label htmlFor="modal-ivf" className="block text-[11px] font-bold text-slate-700 mb-1">IVF / Assisted Conception</label>
+                    <select
+                      id="modal-ivf"
+                      value={ivf}
+                      onChange={e => setIvf(e.target.value)}
+                      className="w-full text-xs border border-slate-300 bg-white rounded-lg p-2 focus:outline-none focus:border-teal-500"
+                    >
+                      <option value="No">No</option>
+                      <option value="Yes">Yes</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2 border-b border-slate-150 pb-1 flex items-center gap-1.5 pt-2">
+                  <ShieldAlert className="w-3.5 h-3.5 text-teal-700" />
+                  <span>Obstetric Risk Indicators & Historical Signals</span>
+                </h4>
+                <div className="grid grid-cols-2 gap-3.5">
+                  <div className="flex items-center justify-between bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                    <span className="text-[11px] font-bold text-slate-700">Previous Preterm Birth</span>
+                    <div className="flex items-center space-x-1">
+                      {['No', 'Yes'].map(opt => (
+                        <button
+                          key={opt}
+                          type="button"
+                          onClick={() => setPrevPreterm(opt)}
+                          className={`px-2.5 py-1 text-[10px] font-bold rounded-md border transition cursor-pointer ${prevPreterm === opt ? 'bg-rose-50 border-rose-300 text-rose-800' : 'bg-white border-slate-200 text-slate-600'}`}
+                        >
+                          {opt}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                    <span className="text-[11px] font-bold text-slate-700">Previous FGR</span>
+                    <div className="flex items-center space-x-1">
+                      {['No', 'Yes'].map(opt => (
+                        <button
+                          key={opt}
+                          type="button"
+                          onClick={() => setPrevFgr(opt)}
+                          className={`px-2.5 py-1 text-[10px] font-bold rounded-md border transition cursor-pointer ${prevFgr === opt ? 'bg-rose-50 border-rose-300 text-rose-800' : 'bg-white border-slate-200 text-slate-600'}`}
+                        >
+                          {opt}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                    <span className="text-[11px] font-bold text-slate-700">Previous Stillbirth</span>
+                    <div className="flex items-center space-x-1">
+                      {['No', 'Yes'].map(opt => (
+                        <button
+                          key={opt}
+                          type="button"
+                          onClick={() => setPrevStillbirth(opt)}
+                          className={`px-2.5 py-1 text-[10px] font-bold rounded-md border transition cursor-pointer ${prevStillbirth === opt ? 'bg-rose-50 border-rose-300 text-rose-800' : 'bg-white border-slate-200 text-slate-600'}`}
+                        >
+                          {opt}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+                    <span className="text-[11px] font-bold text-slate-700">Previous Preeclampsia / HTN</span>
+                    <div className="flex items-center space-x-1">
+                      {['No', 'Yes'].map(opt => (
+                        <button
+                          key={opt}
+                          type="button"
+                          onClick={() => setPrevPreeclampsia(opt)}
+                          className={`px-2.5 py-1 text-[10px] font-bold rounded-md border transition cursor-pointer ${prevPreeclampsia === opt ? 'bg-rose-50 border-rose-300 text-rose-800' : 'bg-white border-slate-200 text-slate-600'}`}
+                        >
+                          {opt}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {step === 3 && (
+            <div className="space-y-4">
+              
+              {/* Vitals and Labs panel */}
+              <div>
+                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2 border-b border-slate-150 pb-1 flex items-center gap-1.5">
+                  <Sliders className="w-3.5 h-3.5 text-teal-700" />
+                  <span>Current Vitals & Laboratory Benchmarks</span>
+                </h4>
+                <div className="grid grid-cols-3 gap-2.5">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-0.5">Blood Pressure (BP)</label>
+                    <div className="flex items-center space-x-1.5">
+                      <input
+                        type="number"
+                        placeholder="Sys"
+                        value={systolicBp}
+                        onChange={e => setSystolicBp(Number(e.target.value))}
+                        className="w-full text-xs font-mono border border-slate-300 rounded-lg p-1.5 focus:outline-none focus:border-teal-500 text-center"
+                        title="Systolic Blood Pressure"
+                      />
+                      <span className="text-slate-400 font-bold font-mono text-xs">/</span>
+                      <input
+                        type="number"
+                        placeholder="Dia"
+                        value={diastolicBp}
+                        onChange={e => setDiastolicBp(Number(e.target.value))}
+                        className="w-full text-xs font-mono border border-slate-300 rounded-lg p-1.5 focus:outline-none focus:border-teal-500 text-center"
+                        title="Diastolic Blood Pressure"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="modal-mhr" className="block text-[11px] font-bold text-slate-700 mb-0.5">Maternal Heart Rate</label>
+                    <div className="flex items-center space-x-1">
+                      <input
+                        id="modal-mhr"
+                        type="number"
+                        value={maternalHr}
+                        onChange={e => setMaternalHr(Number(e.target.value))}
+                        className="w-full text-xs font-mono border border-slate-300 rounded-lg p-1.5 focus:outline-none focus:border-teal-500"
+                      />
+                      <span className="text-[10px] text-slate-400 font-bold font-mono">bpm</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="modal-hb" className="block text-[11px] font-bold text-slate-700 mb-0.5">Hemoglobin (Hb)</label>
+                    <div className="flex items-center space-x-1">
+                      <input
+                        id="modal-hb"
+                        type="number"
+                        step="0.1"
+                        value={hemoglobin}
+                        onChange={e => setHemoglobin(Number(e.target.value))}
+                        className="w-full text-xs font-mono border border-slate-300 rounded-lg p-1.5 focus:outline-none focus:border-teal-500"
+                      />
+                      <span className="text-[10px] text-slate-400 font-bold font-mono">g/dL</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="modal-plt" className="block text-[11px] font-bold text-slate-700 mb-0.5">Platelets</label>
+                    <div className="flex items-center space-x-1">
+                      <input
+                        id="modal-plt"
+                        type="number"
+                        value={platelets}
+                        onChange={e => setPlatelets(Number(e.target.value))}
+                        className="w-full text-xs font-mono border border-slate-300 rounded-lg p-1.5 focus:outline-none focus:border-teal-500"
+                      />
+                      <span className="text-[10px] text-slate-400 font-bold font-mono">&times;10⁹/L</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="modal-diab" className="block text-[11px] font-bold text-slate-700 mb-0.5">Diabetes Status</label>
+                    <select
+                      id="modal-diab"
+                      value={diabetesStatus}
+                      onChange={e => setDiabetesStatus(e.target.value)}
+                      className="w-full text-xs border border-slate-300 bg-white rounded-lg p-1.5 focus:outline-none focus:border-teal-500 font-medium"
+                    >
+                      <option value="None">None</option>
+                      <option value="Pre-existing">Pre-existing</option>
+                      <option value="Gestational">Gestational</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label htmlFor="modal-hyper" className="block text-[11px] font-bold text-slate-700 mb-0.5">Hypertension Status</label>
+                    <select
+                      id="modal-hyper"
+                      value={hypertensionStatus}
+                      onChange={e => setHypertensionStatus(e.target.value)}
+                      className="w-full text-xs border border-slate-300 bg-white rounded-lg p-1.5 focus:outline-none focus:border-teal-500 font-medium"
+                    >
+                      <option value="None">None</option>
+                      <option value="Chronic">Chronic</option>
+                      <option value="Pregnancy-associated">Pregnancy-associated</option>
+                    </select>
+                  </div>
+
+                  <div className="col-span-3">
+                    <label htmlFor="modal-notes" className="block text-[11px] font-bold text-slate-700 mb-0.5">Clinical Progress Notes</label>
+                    <textarea
+                      id="modal-notes"
+                      rows={2}
+                      value={clinicalNotes}
+                      onChange={e => setClinicalNotes(e.target.value)}
+                      placeholder="Add baseline diagnostic insights or historical maternal conditions..."
+                      className="w-full text-xs border border-slate-300 rounded-lg p-2 focus:outline-none focus:border-teal-500 leading-normal"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Ultrasound File / Report Extraction Panel */}
+              <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl space-y-3">
+                <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                  <div className="flex items-center space-x-1.5">
+                    <UploadCloud className="w-4 h-4 text-teal-700" />
+                    <span className="text-xs font-black text-slate-800 uppercase tracking-wider">Ultrasound Report Image Intake & AI Extract</span>
+                  </div>
+                  <span className="text-[9px] font-mono font-bold bg-teal-50 border border-teal-200 text-teal-800 px-1.5 py-0.5 rounded uppercase">
+                    AI OCR Assistant
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Upload Report / PDF Scan</label>
+                    <div className="border border-dashed border-slate-300 hover:border-teal-500 transition rounded-lg p-3 bg-white text-center cursor-pointer relative">
+                      <input
+                        type="file"
+                        accept="image/*,application/pdf"
+                        onChange={e => {
+                          if (e.target.files && e.target.files[0]) {
+                            setReportFile(e.target.files[0]);
+                          }
+                        }}
+                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                      />
+                      <FileSpreadsheet className="w-5 h-5 text-slate-400 mx-auto mb-1" />
+                      <span className="text-[11px] font-bold text-slate-700 block">
+                        {reportFile ? reportFile.name : 'Choose PDF / Image'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Upload Ultrasound Images</label>
+                    <div className="border border-dashed border-slate-300 hover:border-teal-500 transition rounded-lg p-3 bg-white text-center cursor-pointer">
+                      <Layers className="w-5 h-5 text-slate-400 mx-auto mb-1" />
+                      <span className="text-[11px] font-bold text-slate-500 block">Drag & Drop Ultrasound files</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-1">
+                  <button
+                    type="button"
+                    onClick={handleSimulateOcr}
+                    disabled={isOcrAnalyzing}
+                    className="bg-slate-900 hover:bg-slate-800 active:bg-slate-950 text-white font-bold text-xs px-4 py-2 rounded-lg flex items-center space-x-1.5 transition shadow-xs cursor-pointer disabled:opacity-60"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-teal-400" />
+                    <span>{isOcrAnalyzing ? 'Ingesting Report...' : 'AI-Assisted Extraction'}</span>
+                  </button>
+                </div>
+
+                {ocrResults && (
+                  <div className="bg-white border border-slate-200 rounded-lg p-3 mt-3 animate-fade-in">
+                    <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2 border-b border-slate-100 pb-1 flex items-center justify-between">
+                      <span>Gemini Vision Extraction Results</span>
+                      <span className="text-emerald-700 font-bold font-mono">100% Ingested</span>
+                    </div>
+                    
+                    <div className="grid grid-cols-5 gap-2 text-center text-xs mb-3">
+                      {ocrResults.map(res => (
+                        <div key={res.field} className="bg-slate-50 border border-slate-150 p-1.5 rounded">
+                          <div className="text-[10px] font-bold text-slate-400">{res.field}</div>
+                          <div className="font-mono font-bold text-slate-800 mt-0.5">{res.extracted}</div>
+                          <div className="text-[9px] text-emerald-600 font-semibold font-mono mt-0.5">&bull; {res.confidence}</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="border-t border-slate-100 pt-2 flex items-center justify-between">
+                      <span className="text-[10px] text-slate-500 italic">Review extracted measurements before verifying details.</span>
+                      <div className="flex space-x-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setOcrResults(null)}
+                          className="px-2.5 py-1 bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 rounded text-[10px] font-bold cursor-pointer"
+                        >
+                          Reject
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleConfirmOcr}
+                          className="px-3 py-1 bg-teal-700 hover:bg-teal-800 text-white rounded text-[10px] font-bold cursor-pointer shadow-3xs"
+                        >
+                          Confirm All
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Baseline Ultrasound Manual Form Section */}
+              <div className="border border-slate-300 rounded-xl overflow-hidden bg-white">
+                <button
+                  type="button"
+                  onClick={() => setIsUltrasoundExpanded(!isUltrasoundExpanded)}
+                  className="w-full bg-slate-50 border-b border-slate-200 p-3 flex justify-between items-center text-left hover:bg-slate-100 transition cursor-pointer select-none"
+                >
+                  <div className="flex items-center space-x-1.5">
+                    <Activity className="w-4 h-4 text-teal-800" />
+                    <span className="text-xs font-black text-slate-800 uppercase tracking-wider">🖥️ Baseline Ultrasound Assessment</span>
+                  </div>
+                  <span className="text-xs text-slate-500 font-bold">{isUltrasoundExpanded ? 'Collapse' : 'Expand'}</span>
+                </button>
+
+                {isUltrasoundExpanded && (
+                  <div className="p-4 space-y-4">
+                    {/* Scan Details */}
+                    <div className="grid grid-cols-3 gap-2.5 border-b border-slate-100 pb-3">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-0.5">Scan Date</label>
+                        <input
+                          type="date"
+                          value={scanDate}
+                          onChange={e => setScanDate(e.target.value)}
+                          className="w-full text-xs border border-slate-300 rounded-lg p-1.5 focus:outline-none focus:border-teal-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-0.5">GA at Scan</label>
+                        <div className="w-full bg-slate-50 border border-slate-200 p-1.5 rounded-lg text-xs font-mono font-bold text-slate-700 text-center">
+                          {currentGaWeeks}w {currentGaDays}d
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-0.5">Ultrasound Type</label>
+                        <select
+                          value={scanType}
+                          onChange={e => setScanType(e.target.value)}
+                          className="w-full text-xs border border-slate-300 bg-white rounded-lg p-1.5 focus:outline-none focus:border-teal-500"
+                        >
+                          <option value="Routine">Routine</option>
+                          <option value="Growth">Growth</option>
+                          <option value="High-risk">High-risk</option>
+                          <option value="Doppler">Doppler</option>
+                          <option value="Other">Other</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Biometry Inputs */}
+                    <div>
+                      <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">Fetal Biometry</h5>
+                      <div className="grid grid-cols-4 gap-2 text-xs">
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-600 mb-0.5">BPD (mm)</label>
+                          <input type="text" placeholder="Not available" value={bpd} onChange={e => setBpd(e.target.value)} className="w-full font-mono border border-slate-300 rounded p-1" />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-600 mb-0.5">HC (mm)</label>
+                          <input type="text" placeholder="Not available" value={hc} onChange={e => setHc(e.target.value)} className="w-full font-mono border border-slate-300 rounded p-1" />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-600 mb-0.5">AC (mm)</label>
+                          <input type="text" placeholder="Not available" value={ac} onChange={e => setAc(e.target.value)} className="w-full font-mono border border-slate-300 rounded p-1" />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-600 mb-0.5">FL (mm)</label>
+                          <input type="text" placeholder="Not available" value={fl} onChange={e => setFl(e.target.value)} className="w-full font-mono border border-slate-300 rounded p-1" />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-600 mb-0.5">CRL (mm)</label>
+                          <input type="text" placeholder="Not available" value={crl} onChange={e => setCrl(e.target.value)} className="w-full font-mono border border-slate-300 rounded p-1" />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-600 mb-0.5">EFW (g)</label>
+                          <input type="text" placeholder="Not available" value={efw} onChange={e => setEfw(e.target.value)} className="w-full font-mono border border-slate-300 rounded p-1" />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Growth %ile</label>
+                          <input type="text" placeholder="Not available" value={growthPercentile} onChange={e => setGrowthPercentile(e.target.value)} className="w-full font-mono border border-slate-300 rounded p-1" />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Amniotic Fluid & Status */}
+                    <div className="grid grid-cols-2 gap-3.5 border-t border-slate-100 pt-3">
+                      <div>
+                        <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">Amniotic Fluid</h5>
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-600 mb-0.5">AFI (cm)</label>
+                            <input type="text" placeholder="Not available" value={afi} onChange={e => setAfi(e.target.value)} className="w-full font-mono border border-slate-300 rounded p-1" />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-600 mb-0.5">SDP / DVP (cm)</label>
+                            <input type="text" placeholder="Not available" value={sdp} onChange={e => setSdp(e.target.value)} className="w-full font-mono border border-slate-300 rounded p-1" />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div>
+                        <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">Fetal Status</h5>
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-600 mb-0.5">FHR (bpm)</label>
+                            <input type="text" placeholder="Not available" value={fhr} onChange={e => setFhr(e.target.value)} className="w-full font-mono border border-slate-300 rounded p-1" />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Cervical L (mm)</label>
+                            <input type="text" placeholder="Not available" value={cervicalLength} onChange={e => setCervicalLength(e.target.value)} className="w-full font-mono border border-slate-300 rounded p-1" />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 text-xs">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Fetal Presentation</label>
+                        <select value={presentation} onChange={e => setPresentation(e.target.value)} className="w-full border border-slate-300 bg-white rounded p-1">
+                          <option value="cephalic">Cephalic</option>
+                          <option value="breech">Breech</option>
+                          <option value="transverse">Transverse</option>
+                          <option value="other">Other</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Placental Position</label>
+                        <select value={placentaLocation} onChange={e => setPlacentaLocation(e.target.value)} className="w-full border border-slate-300 bg-white rounded p-1">
+                          <option value="posterior">Posterior</option>
+                          <option value="anterior">Anterior</option>
+                          <option value="fundal">Fundal</option>
+                          <option value="lateral">Lateral</option>
+                          <option value="previa">Placenta Previa</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Doppler Velocities */}
+                    <div className="border-t border-slate-100 pt-3">
+                      <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">Doppler Waveform Velocities</h5>
+                      <div className="grid grid-cols-4 gap-2 text-xs">
+                        <div>
+                          <label className="block text-[9px] font-bold text-slate-600">UA PI</label>
+                          <input type="text" placeholder="Not available" value={uaPi} onChange={e => setUaPi(e.target.value)} className="w-full font-mono border border-slate-300 rounded p-1" />
+                        </div>
+                        <div>
+                          <label className="block text-[9px] font-bold text-slate-600">UA RI</label>
+                          <input type="text" placeholder="Not available" value={uaRi} onChange={e => setUaRi(e.target.value)} className="w-full font-mono border border-slate-300 rounded p-1" />
+                        </div>
+                        <div>
+                          <label className="block text-[9px] font-bold text-slate-600">UA S/D</label>
+                          <input type="text" placeholder="Not available" value={uaSd} onChange={e => setUaSd(e.target.value)} className="w-full font-mono border border-slate-300 rounded p-1" />
+                        </div>
+                        <div>
+                          <label className="block text-[9px] font-bold text-slate-600">MCA PI</label>
+                          <input type="text" placeholder="Not available" value={mcaPi} onChange={e => setMcaPi(e.target.value)} className="w-full font-mono border border-slate-300 rounded p-1" />
+                        </div>
+                        <div>
+                          <label className="block text-[9px] font-bold text-slate-600">MCA RI</label>
+                          <input type="text" placeholder="Not available" value={mcaRi} onChange={e => setMcaRi(e.target.value)} className="w-full font-mono border border-slate-300 rounded p-1" />
+                        </div>
+                        <div>
+                          <label className="block text-[9px] font-bold text-slate-600">MCA PSV (cm/s)</label>
+                          <input type="text" placeholder="Not available" value={mcaPsv} onChange={e => setMcaPsv(e.target.value)} className="w-full font-mono border border-slate-300 rounded p-1" />
+                        </div>
+                        <div>
+                          <label className="block text-[9px] font-bold text-slate-600">CPR</label>
+                          <input type="text" placeholder="Not available" value={cpr} onChange={e => setCpr(e.target.value)} className="w-full font-mono border border-slate-300 rounded p-1" />
+                        </div>
+                        <div>
+                          <label className="block text-[9px] font-bold text-slate-600">Ductus V PI</label>
+                          <input type="text" placeholder="Not available" value={dvPi} onChange={e => setDvPi(e.target.value)} className="w-full font-mono border border-slate-300 rounded p-1" />
+                        </div>
+                      </div>
+                    </div>
+
+                  </div>
+                )}
+              </div>
+
+            </div>
+          )}
+
+          {step === 4 && (
+            <div className="space-y-4">
+              
+              {/* Medications Exposure Panel */}
+              <div>
+                <div className="flex items-center justify-between border-b border-slate-150 pb-1.5 mb-2">
+                  <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                    <Pill className="w-3.5 h-3.5 text-teal-700" />
+                    <span>Maternal Pharmacological & Medication History</span>
+                  </h4>
+                  <div className="flex items-center space-x-1.5">
+                    <input
+                      id="cb-no-meds"
+                      type="checkbox"
+                      checked={noMedications}
+                      onChange={e => {
+                        setNoMedications(e.target.checked);
+                        if (e.target.checked) setMedicationsList([]);
+                      }}
+                      className="accent-teal-700 w-3.5 h-3.5 rounded"
+                    />
+                    <label htmlFor="cb-no-meds" className="text-[11px] font-bold text-slate-600 cursor-pointer">No current medications</label>
+                  </div>
+                </div>
+
+                {!noMedications && (
+                  <div className="space-y-2">
+                    {medicationsList.map((med, index) => (
+                      <div key={index} className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2 relative">
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveMedication(index)}
+                          className="absolute top-2.5 right-2.5 p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                          title="Remove medication entry"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+
+                        <div className="grid grid-cols-3 gap-2 text-xs">
+                          <div className="col-span-2">
+                            <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Medication Name</label>
+                            <input
+                              type="text"
+                              required
+                              placeholder="e.g. Iron Supplement, Aspirin, Labetalol"
+                              value={med.name}
+                              onChange={e => handleUpdateMedication(index, 'name', e.target.value)}
+                              className="w-full text-xs border border-slate-300 rounded p-1"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Dose</label>
+                            <input
+                              type="text"
+                              placeholder="e.g. 60 mg, 81 mg, 100 mg"
+                              value={med.dose}
+                              onChange={e => handleUpdateMedication(index, 'dose', e.target.value)}
+                              className="w-full text-xs border border-slate-300 rounded p-1"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Frequency</label>
+                            <select
+                              value={med.frequency}
+                              onChange={e => handleUpdateMedication(index, 'frequency', e.target.value)}
+                              className="w-full text-xs border border-slate-300 bg-white rounded p-1"
+                            >
+                              <option value="Once daily">Once daily</option>
+                              <option value="Twice daily">Twice daily</option>
+                              <option value="Three times daily">Three times daily</option>
+                              <option value="As needed (PRN)">As needed (PRN)</option>
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Start Date</label>
+                            <input
+                              type="date"
+                              value={med.startDate}
+                              onChange={e => handleUpdateMedication(index, 'startDate', e.target.value)}
+                              className="w-full text-xs border border-slate-300 rounded p-1"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-600 mb-0.5">Indication</label>
+                            <input
+                              type="text"
+                              placeholder="e.g. Iron deficiency, Preeclampsia prophylaxis"
+                              value={med.indication}
+                              onChange={e => handleUpdateMedication(index, 'indication', e.target.value)}
+                              className="w-full text-xs border border-slate-300 rounded p-1"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+
+                    <button
+                      type="button"
+                      onClick={handleAddMedication}
+                      className="w-full border border-dashed border-slate-300 hover:border-teal-600 hover:bg-teal-50/20 text-teal-700 font-bold text-xs p-2 rounded-lg flex items-center justify-center space-x-1 transition cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Add Medication Entry</span>
+                    </button>
+                  </div>
+                )}
+                
+                <p className="text-[10px] text-slate-400 italic mt-1.5 leading-tight">
+                  Note: Medications are treated strictly as clinical context and are not used as automatic risk weighting.
+                </p>
+              </div>
+
+              {/* Emotional & Support Profile Check-In */}
+              <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl space-y-3">
+                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider border-b border-slate-200 pb-1.5 flex items-center justify-between">
+                  <div className="flex items-center space-x-1.5">
+                    <Heart className="w-3.5 h-3.5 text-teal-700 animate-pulse" />
+                    <span>Patient Support Check-in & Personalization</span>
+                  </div>
+                  <span className="text-[9px] font-mono font-bold bg-blue-50 border border-blue-200 text-blue-800 px-1.5 py-0.5 rounded">
+                    Personalized Comm
+                  </span>
+                </h4>
+
+                <div className="grid grid-cols-2 gap-3.5">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 mb-1">Current Emotional State</label>
+                    <select
+                      value={emotionalState}
+                      onChange={e => setEmotionalState(e.target.value)}
+                      className="w-full text-xs border border-slate-300 bg-white rounded-lg p-2 focus:outline-none focus:border-teal-500"
+                    >
+                      <option value="Calm">Calm</option>
+                      <option value="Confident">Confident</option>
+                      <option value="Excited">Excited</option>
+                      <option value="Anxious">Anxious</option>
+                      <option value="Worried">Worried</option>
+                      <option value="Stressed">Stressed</option>
+                      <option value="Fearful">Fearful</option>
+                      <option value="Overwhelmed">Overwhelmed</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-600 mb-1">Support / Care Preference</label>
+                    <select
+                      value={supportPreference}
+                      onChange={e => setSupportPreference(e.target.value)}
+                      className="w-full text-xs border border-slate-300 bg-white rounded-lg p-2 focus:outline-none focus:border-teal-500"
+                    >
+                      <option value="Detailed explanation">Detailed explanation</option>
+                      <option value="Short explanation">Short explanation</option>
+                      <option value="Reassurance">Reassurance</option>
+                      <option value="More frequent follow-up information">More frequent follow-up info</option>
+                      <option value="Family/caregiver involvement">Family/caregiver involvement</option>
+                      <option value="No preference">No preference</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="text-[10px] text-teal-800 font-medium bg-teal-50/50 px-2.5 py-1.5 rounded border border-teal-100 flex items-center gap-1">
+                  <span className="font-semibold">&bull; Used for communication personalization &mdash; not clinical risk scoring.</span>
+                </div>
+              </div>
+
+              {/* Digital Twin Initialization Controls */}
+              <div className="border border-slate-300 rounded-xl p-4 bg-gradient-to-br from-white to-teal-50/20 space-y-3 shadow-3xs">
+                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                  <Activity className="w-3.5 h-3.5 text-teal-800 animate-pulse" />
+                  <span>🧬 Initialize Pregnancy Digital Twin Parameters</span>
+                </h4>
+
+                <div className="flex items-center space-x-2 bg-white p-2.5 rounded-lg border border-slate-200">
+                  <input
+                    id="cb-twin-gen"
+                    type="checkbox"
+                    checked={generateSyntheticBaseline}
+                    onChange={e => setGenerateSyntheticBaseline(e.target.checked)}
+                    className="accent-teal-700 w-4 h-4 rounded cursor-pointer"
+                  />
+                  <label htmlFor="cb-twin-gen" className="text-xs text-slate-700 font-bold cursor-pointer">
+                    Generate baseline scan (Visit 1 at {currentGaWeeks}w)
+                  </label>
+                </div>
+
+                {generateSyntheticBaseline && (
+                  <div className="pl-6 space-y-2">
+                    <span className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Baseline Source</span>
+                    <div className="flex flex-wrap gap-4">
+                      {[
+                        { label: 'Uploaded ultrasound', desc: 'Ingest PDF/Images file values' },
+                        { label: 'Manual measurements', desc: 'Use ultrasound slider entries' },
+                        { label: 'Normative baseline', desc: 'Compute Hadlock 50th curves' }
+                      ].map(src => (
+                        <label key={src.label} className="flex items-start space-x-2 bg-white px-3 py-2 rounded-lg border border-slate-200 hover:border-teal-600 transition cursor-pointer shrink-0">
+                          <input
+                            type="radio"
+                            name="baseline-source"
+                            checked={baselineSource === src.label}
+                            onChange={() => setBaselineSource(src.label)}
+                            className="accent-teal-700 mt-0.5 cursor-pointer"
+                          />
+                          <div>
+                            <span className="block text-xs font-bold text-slate-800 leading-none">{src.label}</span>
+                            <span className="text-[10px] text-slate-400 font-medium">{src.desc}</span>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+
+                    {baselineSource === 'Normative baseline' && (
+                      <div className="flex items-center space-x-1.5 text-[10px] text-amber-800 bg-amber-50 p-2 rounded border border-amber-200 w-fit">
+                        <AlertTriangle className="w-3.5 h-3.5 text-amber-700" />
+                        <span className="font-bold">⚠️ Synthetic baseline &mdash; not measured clinical data</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+            </div>
+          )}
+
+          {/* Step 5: Verification & Success Stage */}
+          {step === 5 && (
+            <div className="space-y-6 py-6 text-center select-none">
+              
+              {/* Dynamic Checklist Tracker */}
+              {activeAnimationIndex < 6 ? (
+                <div className="max-w-md mx-auto space-y-4">
+                  <div className="animate-pulse flex flex-col items-center justify-center space-y-3">
+                    <RefreshCw className="w-10 h-10 text-teal-700 animate-spin" />
+                    <h3 className="text-sm font-bold text-slate-800 uppercase tracking-widest">Initializing Twin Stream</h3>
+                    <p className="text-xs text-slate-500 font-medium">Assembling multi-organ computational models & longitudinal layers</p>
+                  </div>
+
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-left divide-y divide-slate-150">
+                    {CHECKLIST_STAGES.map((stage, i) => {
+                      const isDone = i < activeAnimationIndex;
+                      const isActive = i === activeAnimationIndex;
+                      return (
+                        <div key={stage} className="flex items-center justify-between py-2.5 text-xs">
+                          <span className={`font-bold uppercase tracking-wider ${isDone ? 'text-teal-800' : isActive ? 'text-slate-800 font-black' : 'text-slate-400'}`}>
+                            {stage}
+                          </span>
+                          <div>
+                            {isDone ? (
+                              <span className="text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded font-black font-mono text-[9px] uppercase tracking-wider">
+                                DONE
+                              </span>
+                            ) : isActive ? (
+                              <span className="text-teal-700 bg-teal-50 border border-teal-200 px-2 py-0.5 rounded font-black font-mono text-[9px] uppercase tracking-wider animate-pulse">
+                                RUNNING
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded font-bold font-mono text-[9px] uppercase tracking-wider">
+                                QUEUED
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                /* Celebration & Digital Twin Initialized Card */
+                <div className="max-w-md mx-auto bg-white border border-slate-300 rounded-2xl p-6 shadow-xl animate-fade-in space-y-5 bg-gradient-to-br from-teal-50/10 via-white to-emerald-50/20">
+                  <div className="w-14 h-14 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center mx-auto text-emerald-700">
+                    <CheckCircle className="w-8 h-8" />
+                  </div>
+
+                  <div>
+                    <h3 className="text-lg font-black text-slate-900 tracking-tight uppercase">Maternal Twin Initialized</h3>
+                    <p className="text-xs text-slate-500 font-medium mt-1">Pregnancy Twin AI telemetry stream successfully structured</p>
+                  </div>
+
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-left space-y-3">
+                    <div className="flex justify-between items-center border-b border-slate-200 pb-2">
+                      <span className="text-xs font-bold text-slate-700">Digital Twin Core:</span>
+                      <span className="font-mono font-black text-sm text-teal-800 bg-teal-50 px-2.5 py-0.5 rounded border border-teal-150">
+                        {currentGaWeeks}W {currentGaDays}D
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="bg-white p-2 rounded border border-slate-150">
+                        <span className="block text-[9px] font-bold text-slate-400 uppercase">Growth Percentile</span>
+                        <span className="font-bold text-slate-800 font-mono text-xs">{growthPercentile || '50'}th %ile</span>
+                      </div>
+                      <div className="bg-white p-2 rounded border border-slate-150">
+                        <span className="block text-[9px] font-bold text-slate-400 uppercase">Amniotic Fluid (AFI)</span>
+                        <span className="font-bold text-slate-800 font-mono text-xs">{afi || '12.5'} cm</span>
+                      </div>
+                      <div className="bg-white p-2 rounded border border-slate-150">
+                        <span className="block text-[9px] font-bold text-slate-400 uppercase">Fetal Heart Rate</span>
+                        <span className="font-bold text-slate-800 font-mono text-xs">{fhr || '144'} bpm</span>
+                      </div>
+                      <div className="bg-white p-2 rounded border border-slate-150">
+                        <span className="block text-[9px] font-bold text-slate-400 uppercase">Data Confidence</span>
+                        <span className="font-bold text-emerald-700 font-mono text-xs">94% Core</span>
+                      </div>
+                    </div>
+
+                    <p className="text-[10px] text-slate-500 italic leading-relaxed pt-1 border-t border-slate-100">
+                      Next recommended longitudinal comparison will utilize the next available ultrasound/clinical visit stream to dynamically construct velocities and trajectory curves.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (createdPatient) {
+                        onPatientCreated(createdPatient);
+                      }
+                    }}
+                    className="w-full bg-teal-700 hover:bg-teal-800 active:bg-teal-900 text-white font-bold text-sm py-2.5 rounded-xl shadow-md cursor-pointer transition uppercase tracking-wider"
+                  >
+                    View Live Twin Stream
+                  </button>
+                </div>
+              )}
+
+            </div>
+          )}
         </div>
 
-        <form onSubmit={handleSubmit} className="p-5 space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="col-span-2">
-              <label htmlFor="modal-patient-name" className="block text-xs font-semibold text-slate-700 mb-1">Patient Full Name</label>
-              <input
-                id="modal-patient-name"
-                type="text"
-                required
-                value={name}
-                onChange={e => setName(e.target.value)}
-                placeholder="e.g. Maria Gonzalez"
-                className="w-full text-xs border border-slate-300 rounded-lg p-2 focus:outline-none focus:border-teal-500"
-              />
+        {/* Footer (Steps 1 to 4) */}
+        {step <= 4 && (
+          <div className="p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between shrink-0 select-none">
+            
+            <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+              AI Recommends. Clinicians Decide.
             </div>
 
-            <div>
-              <label htmlFor="modal-patient-mrn" className="block text-xs font-semibold text-slate-700 mb-1">MRN (Medical Record #)</label>
-              <input
-                id="modal-patient-mrn"
-                type="text"
-                value={mrn}
-                onChange={e => setMrn(e.target.value)}
-                className="w-full text-xs font-mono border border-slate-300 rounded-lg p-2 focus:outline-none focus:border-teal-500"
-              />
+            <div className="flex items-center space-x-2">
+              {step > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setStep(prev => prev - 1)}
+                  className="px-3.5 py-1.5 text-xs font-bold text-slate-600 bg-white border border-slate-300 hover:bg-slate-100 rounded-lg cursor-pointer transition select-none"
+                >
+                  Back
+                </button>
+              )}
+              
+              {step < 4 ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (step === 1 && !name.trim()) {
+                      alert('Please specify a patient name to proceed.');
+                      return;
+                    }
+                    setStep(prev => prev + 1);
+                  }}
+                  className="px-4 py-1.5 text-xs font-black text-white bg-teal-700 hover:bg-teal-800 rounded-lg shadow-xs flex items-center space-x-1 transition cursor-pointer select-none"
+                >
+                  <span>Next Step</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={isSaving}
+                  className="px-4 py-1.5 text-xs font-black text-white bg-teal-700 hover:bg-teal-800 rounded-lg shadow-xs transition cursor-pointer disabled:opacity-60 select-none"
+                >
+                  {isSaving ? 'Initializing Twin...' : 'Initialize Live Twin'}
+                </button>
+              )}
             </div>
 
-            <div>
-              <label htmlFor="modal-patient-age" className="block text-xs font-semibold text-slate-700 mb-1">Maternal Age (years)</label>
-              <input
-                id="modal-patient-age"
-                type="number"
-                value={age}
-                onChange={e => setAge(Number(e.target.value))}
-                className="w-full text-xs border border-slate-300 rounded-lg p-2 focus:outline-none focus:border-teal-500"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="modal-patient-bmi" className="block text-xs font-semibold text-slate-700 mb-1">Maternal BMI (kg/m²)</label>
-              <input
-                id="modal-patient-bmi"
-                type="number"
-                step="0.1"
-                value={maternalBmi}
-                onChange={e => setMaternalBmi(Number(e.target.value))}
-                className="w-full text-xs border border-slate-300 rounded-lg p-2 focus:outline-none focus:border-teal-500"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="modal-patient-gravidity" className="block text-xs font-semibold text-slate-700 mb-1">Gravidity (G)</label>
-              <input
-                id="modal-patient-gravidity"
-                type="number"
-                min="1"
-                value={gravidity}
-                onChange={e => setGravidity(Number(e.target.value))}
-                className="w-full text-xs border border-slate-300 rounded-lg p-2 focus:outline-none focus:border-teal-500"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="modal-patient-parity" className="block text-xs font-semibold text-slate-700 mb-1">Parity (P)</label>
-              <input
-                id="modal-patient-parity"
-                type="number"
-                min="0"
-                value={parity}
-                onChange={e => setParity(Number(e.target.value))}
-                className="w-full text-xs border border-slate-300 rounded-lg p-2 focus:outline-none focus:border-teal-500"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="modal-patient-ga-weeks" className="block text-xs font-semibold text-slate-700 mb-1">Gestational Age (Weeks)</label>
-              <input
-                id="modal-patient-ga-weeks"
-                type="number"
-                min="18"
-                max="41"
-                value={currentGaWeeks}
-                onChange={e => setCurrentGaWeeks(Number(e.target.value))}
-                className="w-full text-xs font-mono border border-slate-300 rounded-lg p-2 focus:outline-none focus:border-teal-500"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="modal-patient-edd" className="block text-xs font-semibold text-slate-700 mb-1">EDD (Estimated Delivery)</label>
-              <input
-                id="modal-patient-edd"
-                type="date"
-                value={edd}
-                onChange={e => setEdd(e.target.value)}
-                className="w-full text-xs border border-slate-300 rounded-lg p-2 focus:outline-none focus:border-teal-500"
-              />
-            </div>
           </div>
+        )}
 
-          <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 flex items-center space-x-2">
-            <input
-              id="cb-baseline"
-              type="checkbox"
-              checked={includeBaseline}
-              onChange={e => setIncludeBaseline(e.target.checked)}
-              className="accent-teal-600 w-4 h-4 rounded"
-            />
-            <label htmlFor="cb-baseline" className="text-xs text-slate-700 font-medium cursor-pointer">
-              Auto-generate baseline scan (Visit 1 at {currentGaWeeks}w) with normative Hadlock biometrics
-            </label>
-          </div>
-
-          <div className="flex justify-end space-x-2 pt-2 border-t border-slate-100">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-100 rounded-lg"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSaving}
-              className="px-4 py-1.5 text-xs font-bold text-white bg-teal-600 hover:bg-teal-700 rounded-lg shadow-xs transition"
-            >
-              {isSaving ? 'Creating Patient...' : 'Enrol Patient'}
-            </button>
-          </div>
-        </form>
       </div>
     </div>
   );
