@@ -36,7 +36,8 @@ import {
   Plus,
   Trash2,
   Heart,
-  ShieldCheck
+  ShieldCheck,
+  Users
 } from 'lucide-react';
 import { PregnancyDigitalTwin, VisitMeasurement, MedicationExposure, User } from '../types';
 import { simulateCounterfactual } from '../utils/trajectoryEngine';
@@ -48,6 +49,9 @@ import { LongitudinalDeliveryForecastPanel } from './LongitudinalDeliveryForecas
 import { TwinHemodynamicsTab } from './twin/TwinHemodynamicsTab';
 import { TwinGuidelinesTab } from './twin/TwinGuidelinesTab';
 import { TwinDeliveryPredictionTab } from './twin/TwinDeliveryPredictionTab';
+import { MaternalVitalsTracker } from './MaternalVitalsTracker';
+import { CriticalClustersSubPage } from './CriticalClustersSubPage';
+import { RiskGroupCohortSubPage } from './RiskGroupCohortSubPage';
 
 // Helper to get proper English ordinal suffixes for numeric values (e.g., 53rd, 50th)
 export function getOrdinal(n: number): string {
@@ -57,7 +61,17 @@ export function getOrdinal(n: number): string {
 }
 import { calculateBiometricZScore } from '../utils/clinicalCalculators';
 
-export type TwinSubPage = 'overview' | 'analytics' | 'records' | 'hemodynamics' | 'guidelines' | 'delivery' | 'medications';
+export type TwinSubPage = 
+  | 'overview' 
+  | 'clusters'
+  | 'cohort'
+  | 'analytics' 
+  | 'records' 
+  | 'hemodynamics' 
+  | 'guidelines' 
+  | 'delivery' 
+  | 'medications' 
+  | 'vitals';
 
 interface PregnancyTwinViewProps {
   twin: PregnancyDigitalTwin;
@@ -70,6 +84,7 @@ interface PregnancyTwinViewProps {
   initialSubPage?: TwinSubPage;
   onSubPageChange?: (subPage: TwinSubPage) => void;
   onRefreshPatients?: () => void;
+  onSelectPatient?: (patientId: string) => void;
 }
 
 export const PregnancyTwinView: React.FC<PregnancyTwinViewProps> = ({
@@ -82,7 +97,8 @@ export const PregnancyTwinView: React.FC<PregnancyTwinViewProps> = ({
   onNavigateToLiveInput,
   initialSubPage = 'overview',
   onSubPageChange,
-  onRefreshPatients
+  onRefreshPatients,
+  onSelectPatient
 }) => {
   const { patient, visits, currentVisit, velocities, trajectoryScore, whyNow, forecast, riskFactors } = twin;
 
@@ -288,6 +304,20 @@ export const PregnancyTwinView: React.FC<PregnancyTwinViewProps> = ({
       badgeColor: 'bg-amber-100 text-amber-900 border-amber-300 font-bold'
     },
     {
+      id: 'clusters',
+      label: 'Critical Cluster Alerts',
+      icon: ShieldAlert,
+      badge: 'Cluster Alpha',
+      badgeColor: 'bg-rose-100 text-rose-900 border-rose-300 font-black'
+    },
+    {
+      id: 'cohort',
+      label: 'Active Pregnancies in Risk Group',
+      icon: Users,
+      badge: '6 Active',
+      badgeColor: 'bg-amber-100 text-amber-900 border-amber-300 font-bold'
+    },
+    {
       id: 'hemodynamics',
       label: 'Fetal Hemodynamics',
       icon: Heart,
@@ -314,6 +344,13 @@ export const PregnancyTwinView: React.FC<PregnancyTwinViewProps> = ({
       icon: Pill,
       badge: `${twin.medications?.length || 0} Regimens`,
       badgeColor: 'bg-purple-50 text-purple-800 border-purple-200 font-semibold'
+    },
+    {
+      id: 'vitals',
+      label: 'Maternal Vitals Correlation',
+      icon: Heart,
+      badge: 'Vitals Active',
+      badgeColor: 'bg-rose-50 text-rose-800 border-rose-200 font-semibold'
     },
     {
       id: 'analytics',
@@ -411,7 +448,13 @@ export const PregnancyTwinView: React.FC<PregnancyTwinViewProps> = ({
                 <div className="font-mono text-[10px] font-bold text-teal-700 bg-teal-50 px-1 py-0.5 rounded border border-teal-100 w-fit">
                   {visits[0]?.gestationalAgeWeeks}w &rarr; {visits[visits.length - 1]?.gestationalAgeWeeks}w
                 </div>
-                <div className="text-slate-400 font-mono text-[9px]">BP: {currentVisit?.bloodPressure || '118/76 mmHg'}</div>
+                <button 
+                  onClick={() => handleSwitchSubPage('vitals')}
+                  className="mt-1 text-slate-500 font-semibold hover:text-teal-700 flex items-center gap-1 bg-slate-50 border border-slate-200 rounded px-1.5 py-0.5 w-full hover:bg-teal-50/50 transition cursor-pointer"
+                >
+                  <Heart className="w-2.5 h-2.5 text-rose-500 shrink-0" />
+                  <span className="truncate">BP: {currentVisit?.bloodPressure || '118/76 mmHg'}</span>
+                </button>
               </div>
             </div>
             <div className="mt-2 text-[9px] font-mono text-slate-400 border-t border-slate-100/50 pt-1">
@@ -498,8 +541,14 @@ export const PregnancyTwinView: React.FC<PregnancyTwinViewProps> = ({
                 </div>
               </div>
             </div>
-            <div className="mt-2 text-[9px] font-mono text-slate-400 border-t border-slate-100/50 pt-1">
-              Maternal Wellness
+            <div className="mt-2 text-[9px] font-mono text-slate-400 border-t border-slate-100/50 pt-1 flex items-center justify-between">
+              <span>Maternal Wellness</span>
+              <button 
+                onClick={() => handleSwitchSubPage('vitals')}
+                className="text-[9px] text-teal-600 hover:text-teal-800 font-bold hover:underline cursor-pointer"
+              >
+                Track Vitals &rarr;
+              </button>
             </div>
           </div>
 
@@ -2357,6 +2406,24 @@ export const PregnancyTwinView: React.FC<PregnancyTwinViewProps> = ({
       {/* 3. Sub-Pages Workspace Layout (Main Active Panel) */}
       <div className="space-y-4">
         {activeSubPage === 'overview' && renderOverviewSubPage()}
+        {activeSubPage === 'clusters' && (
+          <CriticalClustersSubPage
+            twin={twin}
+            currentUser={currentUser}
+            onSelectPatient={onSelectPatient}
+            onNavigateToCohort={() => handleSwitchSubPage('cohort')}
+            onOpenCopilot={onOpenCopilot}
+          />
+        )}
+        {activeSubPage === 'cohort' && (
+          <RiskGroupCohortSubPage
+            twin={twin}
+            currentUser={currentUser}
+            onSelectPatient={onSelectPatient}
+            onNavigateToClusters={() => handleSwitchSubPage('clusters')}
+            onOpenCopilot={onOpenCopilot}
+          />
+        )}
         {activeSubPage === 'analytics' && renderAnalyticsSubPage()}
         {activeSubPage === 'records' && renderRecordsSubPage()}
         {activeSubPage === 'medications' && renderMedicationsSubPage()}
@@ -2378,6 +2445,12 @@ export const PregnancyTwinView: React.FC<PregnancyTwinViewProps> = ({
             patient={patient}
             twin={twin}
             visits={visits}
+          />
+        )}
+        {activeSubPage === 'vitals' && (
+          <MaternalVitalsTracker
+            twin={twin}
+            onRefresh={onRefreshPatients}
           />
         )}
       </div>

@@ -320,4 +320,4 @@ export interface CopilotMessage {
   };
 }
 
-export type AppTab = 'home' | 'clinical' | 'live-input' | 'analytics' | 'simulation' | 'records' | 'settings' | 'sih-plan' | 'research' | 'admin';
+export type AppTab = 'home' | 'clinical' | 'live-input' | 'analytics' | 'simulation' | 'records' | 'settings' | 'research' | 'admin' | 'medications';

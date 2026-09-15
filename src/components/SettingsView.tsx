@@ -27,7 +27,6 @@ import {
   Terminal
 } from 'lucide-react';
 import { User, UserRole } from '../types';
-import { SihProjectPlanView } from './SihProjectPlanView';
 import { ResearchModeView } from './ResearchModeView';
 import { AdminAuditView } from './AdminAuditView';
 import { HybridMLManager } from '../services/mlTrainingService';
@@ -37,7 +36,7 @@ interface SettingsViewProps {
   currentUser: User;
   onSwitchRole: (role: UserRole) => void;
   onSwitchUser?: (userId: string) => void;
-  initialSubTab?: 'general' | 'sih-plan' | 'research' | 'admin' | 'guidelines' | 'model-training';
+  initialSubTab?: 'general' | 'research' | 'admin' | 'guidelines' | 'model-training';
   onNavigateToClinical?: () => void;
   onSelectPatient?: (patientId: string) => void;
   onOpenGuidelines?: () => void;
@@ -52,7 +51,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onSelectPatient,
   onOpenGuidelines
 }) => {
-  const [activeSubTab, setActiveSubTab] = useState<'general' | 'sih-plan' | 'research' | 'admin' | 'guidelines' | 'model-training'>(initialSubTab);
+  const [activeSubTab, setActiveSubTab] = useState<'general' | 'research' | 'admin' | 'guidelines' | 'model-training'>(initialSubTab);
 
   // Preference switches (local UI state)
   const [fluidUnit, setFluidUnit] = useState<'MVP' | 'AFI'>('MVP');
@@ -121,19 +120,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </button>
 
           <span className="text-slate-300">|</span>
-
-          <button
-            id="subtab-plan"
-            onClick={() => setActiveSubTab('sih-plan')}
-            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer ${
-              activeSubTab === 'sih-plan'
-                ? 'bg-white text-slate-900 shadow-2xs font-bold'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
-            }`}
-          >
-            <Layers className="w-3.5 h-3.5 text-teal-600" />
-            <span>SIH Project Plan</span>
-          </button>
 
           <button
             id="subtab-research"
@@ -346,24 +332,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
               <div className="space-y-2">
                 <button
-                  onClick={() => setActiveSubTab('sih-plan')}
-                  className="w-full p-3 rounded-xl border border-slate-200 hover:border-teal-300 hover:bg-teal-50/50 text-left transition-all group cursor-pointer"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2.5">
-                      <Layers className="w-4 h-4 text-teal-600" />
-                      <span className="text-xs font-bold text-slate-900 group-hover:text-teal-900">
-                        SIH Project Architecture Plan
-                      </span>
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-teal-700" />
-                  </div>
-                  <p className="text-[11px] text-slate-500 mt-1">
-                    System component design, hardware specs, team milestones, and clinical validation.
-                  </p>
-                </button>
-
-                <button
                   onClick={() => setActiveSubTab('research')}
                   className="w-full p-3 rounded-xl border border-slate-200 hover:border-teal-300 hover:bg-teal-50/50 text-left transition-all group cursor-pointer"
                 >
@@ -461,29 +429,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       )}
 
-      {/* Subtab 2: SIH Project Plan (moved to Admin/Info menu inside settings) */}
-      {activeSubTab === 'sih-plan' && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between bg-white px-4 py-2.5 rounded-xl border border-slate-200 text-xs">
-            <div className="flex items-center space-x-2 text-slate-600">
-              <span className="font-semibold text-slate-400">Settings &gt; Admin &amp; Info &gt;</span>
-              <span className="font-bold text-slate-900">SIH Project Architecture &amp; Team R&amp;D Matrix</span>
-            </div>
-            <button
-              onClick={() => setActiveSubTab('general')}
-              className="text-teal-700 hover:text-teal-800 font-semibold"
-            >
-              ← Back to Settings
-            </button>
-          </div>
-          <SihProjectPlanView
-            onSelectPatient={onSelectPatient}
-            onNavigateToClinical={onNavigateToClinical}
-          />
-        </div>
-      )}
-
-      {/* Subtab 3: ROC Trajectory Engine & Research (moved to Admin/Info menu inside settings) */}
+      {/* Subtab: ROC Trajectory Engine & Research (moved to Admin/Info menu inside settings) */}
       {activeSubTab === 'research' && (
         <div className="space-y-4">
           <div className="flex items-center justify-between bg-white px-4 py-2.5 rounded-xl border border-slate-200 text-xs">

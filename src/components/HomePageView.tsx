@@ -17,7 +17,9 @@ import {
   User as UserIcon,
   HelpCircle,
   Clock,
-  ArrowRight
+  ArrowRight,
+  ShieldAlert,
+  Users
 } from 'lucide-react';
 import { Patient, User } from '../types';
 import { AppTab } from './AppNavigation';
@@ -28,6 +30,7 @@ interface HomePageViewProps {
   selectedPatientId: string;
   onSelectPatient: (patientId: string) => void;
   onNavigateTab: (tab: AppTab) => void;
+  onNavigateToTwinSubPage?: (subPage: 'clusters' | 'cohort') => void;
   onOpenUpload: (patientId?: string) => void;
   onOpenCopilot: () => void;
   onOpenGuidelines: () => void;
@@ -43,6 +46,7 @@ export const HomePageView: React.FC<HomePageViewProps> = ({
   selectedPatientId,
   onSelectPatient,
   onNavigateTab,
+  onNavigateToTwinSubPage,
   onOpenUpload,
   onOpenCopilot,
   onOpenGuidelines
@@ -291,6 +295,49 @@ export const HomePageView: React.FC<HomePageViewProps> = ({
             </p>
           </div>
 
+        </div>
+      </section>
+
+      {/* ========================================================================= */}
+      {/* 3.5. CLINICAL DIGITAL TWINS POPULATION SUB-PAGES NAVIGATOR              */}
+      {/* ========================================================================= */}
+      <section className="bg-gradient-to-r from-slate-900 to-slate-800 text-white rounded-3xl p-6 sm:p-7 shadow-sm border border-slate-700/80">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+          <div className="space-y-1.5 text-left">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-[10px] font-black uppercase tracking-widest text-teal-300 bg-teal-950/90 px-2.5 py-0.5 rounded-full border border-teal-700">
+                Clinical Digital Twins
+              </span>
+              <span className="text-[11px] font-mono text-slate-300 bg-slate-800/80 px-2 py-0.5 rounded border border-slate-700">
+                2 Sub-Pages Available
+              </span>
+            </div>
+            <h3 className="text-base sm:text-lg font-black text-white tracking-tight">
+              Population Risk Stratification &amp; Cluster Triage
+            </h3>
+            <p className="text-xs text-slate-300 max-w-2xl leading-relaxed">
+              <strong>Cluster Alpha</strong> (Late 3rd Trimester Multi-Factor Decay, 32–35w) and the <strong>6 Active Pregnancies</strong> in this high-risk cohort have been transitioned into dedicated sub-pages in Clinical Digital Twins for longitudinal hemodynamic correlation.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+            <button
+              onClick={() => onNavigateToTwinSubPage ? onNavigateToTwinSubPage('clusters') : onNavigateTab('clinical')}
+              className="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-2 cursor-pointer"
+            >
+              <ShieldAlert className="w-4 h-4" />
+              <span>Critical Cluster Alerts</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => onNavigateToTwinSubPage ? onNavigateToTwinSubPage('cohort') : onNavigateTab('clinical')}
+              className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-slate-100 border border-slate-600 text-xs font-bold rounded-xl transition flex items-center gap-2 cursor-pointer"
+            >
+              <Users className="w-4 h-4 text-teal-400" />
+              <span>Active Pregnancies (6)</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
       </section>
 

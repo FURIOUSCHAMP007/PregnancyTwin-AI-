@@ -22,7 +22,9 @@ import {
   ShieldCheck,
   Calendar,
   TrendingUp,
-  FileSpreadsheet
+  FileSpreadsheet,
+  ShieldAlert,
+  Users
 } from 'lucide-react';
 import { User, UserRole } from '../types';
 import { AppTab } from './AppNavigation';
@@ -102,7 +104,7 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
   const isAnalyticsActive = activeTab === 'analytics';
   const isMedicationsActive = activeTab === 'medications';
   const isResearchActive = activeTab === 'research';
-  const isSettingsActive = activeTab === 'settings' || activeTab === 'sih-plan' || activeTab === 'admin';
+  const isSettingsActive = activeTab === 'settings' || activeTab === 'admin';
 
   const navItems = [
     {
@@ -323,6 +325,18 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
                     label: 'Twin Dashboard',
                     icon: Activity,
                     badge: hasTrajectoryAlert ? 'Alert' : undefined,
+                  },
+                  {
+                    id: 'clusters' as TwinSubPage,
+                    label: 'Critical Cluster Alerts',
+                    icon: ShieldAlert,
+                    badge: 'Cluster Alpha',
+                  },
+                  {
+                    id: 'cohort' as TwinSubPage,
+                    label: 'Active Pregnancies in Risk Group',
+                    icon: Users,
+                    badge: '6 Active',
                   },
                   {
                     id: 'hemodynamics' as TwinSubPage,

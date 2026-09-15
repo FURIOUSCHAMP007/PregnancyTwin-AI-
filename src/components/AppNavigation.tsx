@@ -33,7 +33,6 @@ export type AppTab =
   | 'simulation'
   | 'records'
   | 'settings'
-  | 'sih-plan'
   | 'research'
   | 'admin';
 
@@ -74,7 +73,7 @@ export const AppNavigation: React.FC<AppNavigationProps> = ({
   const isInsightsActive = activeTab === 'analytics';
   const isMedicationsActive = activeTab === 'medications';
   const isResearchActive = activeTab === 'research';
-  const isSettingsActive = activeTab === 'settings' || activeTab === 'sih-plan' || activeTab === 'admin';
+  const isSettingsActive = activeTab === 'settings' || activeTab === 'admin';
 
   const [isUserMenuOpen, setIsUserMenuOpen] = useState<boolean>(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
@@ -115,7 +114,7 @@ export const AppNavigation: React.FC<AppNavigationProps> = ({
 
   return (
     <header className="sticky top-0 z-40 bg-slate-900 border-b border-slate-800 text-slate-200 min-h-16 w-full shadow-md shrink-0">
-      <div className="max-w-[1720px] mx-auto h-full min-h-16 px-3 sm:px-6 flex items-center justify-between gap-2 overflow-x-hidden">
+      <div className="w-full h-full min-h-16 px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-2 overflow-x-hidden">
         
         {/* Left Section: Brand Logo & Title + Navigation */}
         <div className="flex items-center space-x-3 sm:space-x-4 min-w-0">

@@ -19,7 +19,6 @@ import { LiveInputStudioView } from './components/LiveInputStudioView';
 import { GrowthTrajectoryAnalyticsView } from './components/GrowthTrajectoryAnalyticsView';
 import { HomePageView } from './components/HomePageView';
 import { MedicationsHub } from './components/MedicationsHub';
-import { SihProjectPlanView } from './components/SihProjectPlanView';
 import { PlatformWalkthrough } from './components/PlatformWalkthrough';
 import {
   Patient,
@@ -44,7 +43,7 @@ export default function App() {
       const p = path.toLowerCase();
       const validTabs: AppTab[] = [
         'home', 'clinical', 'live-input', 'analytics', 'medications', 'simulation', 
-        'records', 'settings', 'sih-plan', 'research', 'admin'
+        'records', 'settings', 'research', 'admin'
       ];
       if (validTabs.includes(p as AppTab)) {
         tab = p as AppTab;
@@ -56,7 +55,7 @@ export default function App() {
     
     let subPage: TwinSubPage = 'overview';
     const sp = params.get('subpage');
-    if (sp && ['overview', 'analytics', 'records', 'hemodynamics', 'guidelines', 'delivery', 'medications'].includes(sp)) {
+    if (sp && ['overview', 'analytics', 'records', 'hemodynamics', 'guidelines', 'delivery', 'medications', 'vitals', 'clusters', 'cohort'].includes(sp)) {
       subPage = sp as TwinSubPage;
     }
 
@@ -118,7 +117,7 @@ export default function App() {
         const p = path.toLowerCase();
         const validTabs: AppTab[] = [
           'home', 'clinical', 'live-input', 'analytics', 'medications', 'simulation', 
-          'records', 'settings', 'sih-plan', 'research', 'admin'
+          'records', 'settings', 'research', 'admin'
         ];
         if (validTabs.includes(p as AppTab)) {
           tab = p as AppTab;
@@ -130,7 +129,7 @@ export default function App() {
       
       let subPage: TwinSubPage = 'overview';
       const sp = params.get('subpage');
-      if (sp && ['overview', 'analytics', 'records', 'hemodynamics', 'guidelines', 'delivery', 'medications'].includes(sp)) {
+      if (sp && ['overview', 'analytics', 'records', 'hemodynamics', 'guidelines', 'delivery', 'medications', 'vitals', 'clusters', 'cohort'].includes(sp)) {
         subPage = sp as TwinSubPage;
       }
 
@@ -500,7 +499,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-slate-50 text-slate-900 flex font-sans selection:bg-teal-500 selection:text-white overflow-x-hidden">
+    <div className="h-screen w-full bg-slate-50 text-slate-900 flex font-sans selection:bg-teal-500 selection:text-white overflow-hidden">
       
       {/* Persistent Left Side Navigation Bar */}
       <AppSidebar
@@ -524,7 +523,7 @@ export default function App() {
       />
 
       {/* Main Content Body Container */}
-      <div className="flex-1 flex flex-col min-w-0 min-h-screen">
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto">
 
         {/* Toast popup */}
         {toastMessage && (
@@ -635,6 +634,10 @@ export default function App() {
                 setActiveTab(tab);
               }
             }}
+            onNavigateToTwinSubPage={(subPage) => {
+              setTwinSubPage(subPage);
+              setActiveTab('clinical');
+            }}
             onOpenUpload={handleOpenUpload}
             onOpenCopilot={() => setIsCopilotOpen(true)}
             onOpenGuidelines={() => setIsKnowledgeOpen(true)}
@@ -725,6 +728,7 @@ export default function App() {
                       onOpenReviewMeasurement={(m) => setReviewingMeasurement(m)}
                       onOpenMultilingualModal={() => setIsCopilotOpen(true)}
                       onNavigateToLiveInput={() => setActiveTab('live-input')}
+                      onSelectPatient={setSelectedPatientId}
                       onRefreshPatients={() => {
                         fetchPatients(currentUser.id, currentUser.role);
                         fetchTwin(selectedPatientId, currentUser.id, currentUser.role);
@@ -758,13 +762,15 @@ export default function App() {
 
                 {digitalTwin && (
                   <PregnancyTwinView
+                    currentUser={currentUser}
                     twin={digitalTwin}
+                    onSelectPatient={setSelectedPatientId}
                     initialSubPage={
-                      activeTab === 'simulation'
-                        ? 'simulation'
-                        : activeTab === 'records'
+                      activeTab === 'records'
                         ? 'records'
-                        : twinSubPage
+                        : (activeTab === ('simulation' as any)
+                        ? 'analytics'
+                        : twinSubPage)
                     }
                     onSubPageChange={(p) => setTwinSubPage(p)}
                     onOpenUpload={() => {
@@ -827,8 +833,8 @@ export default function App() {
           />
         )}
 
-        {/* 5. Settings & Admin/Info Suite (SIH Plan, Research ROC, Audit Log, Guidelines) */}
-        {(activeTab === 'settings' || activeTab === 'sih-plan' || activeTab === 'research' || activeTab === 'admin') && (
+        {/* 5. Settings & Admin/Info Suite (Research ROC, Audit Log, Guidelines) */}
+        {(activeTab === 'settings' || activeTab === 'research' || activeTab === 'admin') && (
           <SettingsView
             currentUser={currentUser}
             onSwitchRole={handleSwitchRole}
@@ -838,8 +844,6 @@ export default function App() {
                 ? 'admin'
                 : activeTab === 'research'
                 ? 'model-training'
-                : activeTab === 'sih-plan'
-                ? 'sih-plan'
                 : 'general'
             }
             onNavigateToClinical={() => setActiveTab('clinical')}

@@ -53,13 +53,13 @@ export const RestPatientDisplay: React.FC<RestPatientDisplayProps> = ({
   const getTrajectoryIcon = (category: string) => {
     switch (category) {
       case 'FLUID_DECLINE':
-        return <TrendingDown className="w-3.5 h-3.5 text-rose-500" title="Amniotic Fluid Index Decline" />;
+        return <span title="Amniotic Fluid Index Decline"><TrendingDown className="w-3.5 h-3.5 text-rose-500" /></span>;
       case 'GROWTH_DEVIATION':
-        return <TrendingDown className="w-3.5 h-3.5 text-amber-500" title="Fetal Growth Percentile Deceleration" />;
+        return <span title="Fetal Growth Percentile Deceleration"><TrendingDown className="w-3.5 h-3.5 text-amber-500" /></span>;
       case 'ACCELERATED_DECLINE':
-        return <TrendingDown className="w-3.5 h-3.5 text-rose-600 animate-pulse" title="Accelerated Decline Profile" />;
+        return <span title="Accelerated Decline Profile"><TrendingDown className="w-3.5 h-3.5 text-rose-600 animate-pulse" /></span>;
       default:
-        return <TrendingUp className="w-3.5 h-3.5 text-emerald-500" title="Stable Growth Trajectory" />;
+        return <span title="Stable Growth Trajectory"><TrendingUp className="w-3.5 h-3.5 text-emerald-500" /></span>;
     }
   };
 

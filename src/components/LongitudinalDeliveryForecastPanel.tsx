@@ -144,17 +144,17 @@ export const LongitudinalDeliveryForecastPanel: React.FC<LongitudinalDeliveryFor
         visitDate: v.date,
         gaWeeks: Number(ga.toFixed(1)),
         afi: v.amnioticFluidIndex_cm,
-        dvp: v.biometrics?.dvp_cm || (v.amnioticFluidIndex_cm * 0.3).toFixed(1),
+        dvp: (v.biometrics as any)?.dvp_cm || (v.amnioticFluidIndex_cm * 0.3).toFixed(1),
         efw: v.estimatedFetalWeight_g,
         growthPercentile: v.growthPercentile,
-        bpSystolic: v.maternalVitals?.bpSystolic || 118,
-        bpDiastolic: v.maternalVitals?.bpDiastolic || 76,
+        bpSystolic: (v as any).maternalVitals?.bpSystolic || 118,
+        bpDiastolic: (v as any).maternalVitals?.bpDiastolic || 76,
         afiVelocity: Number(afiVel.toFixed(2)),
         efwVelocity: Number(efwVel.toFixed(1)),
         pctVelocity: Number(pctVel.toFixed(2)),
-        ultrasoundQuality: v.metadata?.ultrasoundQuality || 'Good',
-        measurementConfidence: v.metadata?.measurementConfidence ? `${v.metadata.measurementConfidence}%` : '95%',
-        medicationContext: v.metadata?.medicationContext || 'None'
+        ultrasoundQuality: (v as any).metadata?.ultrasoundQuality || 'Good',
+        measurementConfidence: (v as any).metadata?.measurementConfidence ? `${(v as any).metadata.measurementConfidence}%` : '95%',
+        medicationContext: (v as any).metadata?.medicationContext || 'None'
       };
     });
   }, [sortedVisits]);

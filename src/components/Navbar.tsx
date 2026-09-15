@@ -28,8 +28,8 @@ interface NavbarProps {
   currentUser: User;
   onSwitchRole: (role: UserRole) => void;
   onSwitchUser?: (userId: string) => void;
-  activeTab: 'home' | 'clinical' | 'live-input' | 'analytics' | 'research' | 'sih-plan' | 'admin';
-  onSelectTab: (tab: 'home' | 'clinical' | 'live-input' | 'analytics' | 'research' | 'sih-plan' | 'admin') => void;
+  activeTab: 'home' | 'clinical' | 'live-input' | 'analytics' | 'research' | 'admin';
+  onSelectTab: (tab: 'home' | 'clinical' | 'live-input' | 'analytics' | 'research' | 'admin') => void;
   onOpenKnowledge: () => void;
   onOpenCopilot: () => void;
   onOpenUpload?: () => void;
@@ -81,11 +81,11 @@ export const Navbar: React.FC<NavbarProps> = ({
   }, [isMoreOpen]);
 
   // Is active tab one of the secondary items?
-  const isSecondaryActive = activeTab === 'sih-plan' || activeTab === 'research' || activeTab === 'admin';
+  const isSecondaryActive = activeTab === 'research' || activeTab === 'admin';
 
   return (
-    <header className="sticky top-0 z-30 bg-slate-900 border-b border-slate-800 text-slate-200 shadow-sm">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-15 flex items-center justify-between">
+    <header className="sticky top-0 z-30 bg-slate-900 border-b border-slate-800 text-slate-200 shadow-sm w-full">
+      <div className="w-full px-4 sm:px-6 lg:px-8 h-15 flex items-center justify-between">
         
         {/* Left: Brand Identity */}
         <button 
@@ -251,23 +251,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
                   System Architecture &amp; R&amp;D
                 </div>
-
-                <button
-                  id="menu-item-plan"
-                  onClick={() => {
-                    setIsMoreOpen(false);
-                    onSelectTab('sih-plan');
-                  }}
-                  className={`w-full px-3 py-2 text-left text-xs flex items-center space-x-2.5 hover:bg-slate-800 transition-colors cursor-pointer ${
-                    activeTab === 'sih-plan' ? 'bg-slate-800/80 text-teal-300 font-semibold' : 'text-slate-200'
-                  }`}
-                >
-                  <Layers className="w-4 h-4 text-slate-400 shrink-0" />
-                  <div>
-                    <div className="font-semibold">SIH Architecture Plan</div>
-                    <div className="text-[10px] text-slate-400">Team milestones &amp; dataset strategy</div>
-                  </div>
-                </button>
 
                 <button
                   id="menu-item-research"

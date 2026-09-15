@@ -466,7 +466,7 @@ export const AiUltrasoundScreenOcrModal: React.FC<AiUltrasoundScreenOcrModalProp
                     <span>
                       <strong className="text-slate-600">CPR:</strong>{' '}
                       <span className={`font-bold ${(extractedResult.doppler.cerebroplacental_ratio || 1.6) < 1.08 ? 'text-rose-700' : 'text-emerald-700'}`}>
-                        {extractedResult.doppler.cerebroplacentalRatio || extractedResult.doppler.cerebroplacental_ratio || '—'}
+                        {extractedResult.doppler.cerebroplacental_ratio || '—'}
                       </span>
                     </span>
                   </div>
