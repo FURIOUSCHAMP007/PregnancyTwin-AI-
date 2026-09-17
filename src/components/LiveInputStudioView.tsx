@@ -1749,10 +1749,12 @@ export const LiveInputStudioView: React.FC<LiveInputStudioViewProps> = ({
                   onChange={e => setUaPi(parseFloat(e.target.value))}
                   className="w-full accent-rose-600 cursor-pointer mt-1"
                 />
-                <div className="flex justify-between text-[10px] text-slate-400 font-mono mt-0.5">
-                  <span>0.10</span>
-                  <span className="text-slate-600">&gt;1.40 Elevated</span>
-                  <span>4.00</span>
+                <div className="flex justify-between items-center text-[9px] text-slate-400 font-mono mt-0.5 min-w-0">
+                  <span className="whitespace-nowrap">Min: 0.10</span>
+                  <span className="px-1.5 py-0.5 bg-rose-50 border border-rose-100 rounded text-rose-700 font-bold truncate scale-95 origin-center select-none">
+                    &gt;1.40 Elevated
+                  </span>
+                  <span className="whitespace-nowrap text-right">Max: 4.00</span>
                 </div>
               </div>
 
@@ -1775,25 +1777,35 @@ export const LiveInputStudioView: React.FC<LiveInputStudioViewProps> = ({
                   onChange={e => setMcaPi(parseFloat(e.target.value))}
                   className="w-full accent-indigo-600 cursor-pointer mt-1"
                 />
-                <div className="flex justify-between text-[10px] text-slate-400 font-mono mt-0.5">
-                  <span>0.10</span>
-                  <span className="text-slate-600">&lt;1.30 Vasodilation</span>
-                  <span>4.50</span>
+                <div className="flex justify-between items-center text-[9px] text-slate-400 font-mono mt-0.5 min-w-0">
+                  <span className="whitespace-nowrap">Min: 0.10</span>
+                  <span className="px-1.5 py-0.5 bg-amber-50 border border-amber-100 rounded text-amber-700 font-bold truncate scale-95 origin-center select-none">
+                    &lt;1.30 Vasodilation
+                  </span>
+                  <span className="whitespace-nowrap text-right">Max: 4.50</span>
                 </div>
               </div>
 
               {/* Cerebroplacental Ratio CPR Summary Card */}
               <div className="p-2.5 rounded-lg border bg-gradient-to-br from-slate-50 to-slate-100 flex flex-col justify-between">
                 <div>
-                  <div className="flex justify-between text-[11px] font-medium text-slate-600 mb-0.5">
-                    <span>Cerebroplacental Ratio</span>
-                    <span className="font-mono font-bold text-slate-900">{dopplerEval.cerebroplacentalRatio ?? 'N/A'}</span>
+                  <div className="flex items-center justify-between gap-1.5 mb-1.5 min-w-0">
+                    <span className="text-[11px] font-bold text-slate-700 truncate">CPR Ratio</span>
+                    <span className={`shrink-0 font-mono font-black text-xs px-2 py-0.5 rounded ${
+                      dopplerEval.cprStatus === 'critical'
+                        ? 'bg-rose-100 text-rose-800'
+                        : dopplerEval.cprStatus === 'brain_sparing'
+                        ? 'bg-amber-100 text-amber-800'
+                        : 'bg-emerald-100 text-emerald-800'
+                    }`}>
+                      {dopplerEval.cerebroplacentalRatio ?? 'N/A'}
+                    </span>
                   </div>
-                  <p className="text-[10px] text-slate-500 leading-tight">
+                  <p className="text-[10px] text-slate-500 leading-normal line-clamp-3">
                     {dopplerEval.cprStatus === 'critical'
                       ? 'Severe cerebral redistribution. High risk of fetal acidosis. Urgent review.'
                       : dopplerEval.cprStatus === 'brain_sparing'
-                      ? 'Compensatory cerebral vasodilation (brain sparing detected).'
+                      ? 'Compensatory cerebral vasodilation (brain-sparing detected).'
                       : 'Normative placental vascular resistance and cerebral perfusion.'}
                   </p>
                 </div>
@@ -1825,20 +1837,24 @@ export const LiveInputStudioView: React.FC<LiveInputStudioViewProps> = ({
               </span>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs">
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-2.5 text-xs">
               {/* Breathing */}
               <button
                 type="button"
                 onClick={() => setFetalBreathing(prev => !prev)}
-                className={`p-2 rounded-lg border text-left transition ${
+                className={`p-2.5 rounded-lg border text-left transition ${
                   fetalBreathing
                     ? 'border-teal-500 bg-teal-50/60 text-teal-900'
                     : 'border-slate-200 bg-slate-50 text-slate-400'
                 }`}
               >
-                <div className="flex justify-between items-center mb-1">
-                  <span className="font-bold text-[11px]">Breathing</span>
-                  <span className="font-mono text-[10px] font-bold">{fetalBreathing ? '2 pts' : '0 pt'}</span>
+                <div className="flex items-center justify-between gap-1 mb-1.5 min-w-0">
+                  <span className="font-bold text-[11px] text-slate-800 truncate">Breathing</span>
+                  <span className={`shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full font-mono ${
+                    fetalBreathing ? 'bg-teal-100 text-teal-900' : 'bg-slate-200 text-slate-600'
+                  }`}>
+                    {fetalBreathing ? '2 pts' : '0 pt'}
+                  </span>
                 </div>
                 <p className="text-[10px] line-clamp-2">≥1 ep ≥30s rhythmic breathing</p>
               </button>
@@ -1847,15 +1863,19 @@ export const LiveInputStudioView: React.FC<LiveInputStudioViewProps> = ({
               <button
                 type="button"
                 onClick={() => setGrossBodyMovement(prev => !prev)}
-                className={`p-2 rounded-lg border text-left transition ${
+                className={`p-2.5 rounded-lg border text-left transition ${
                   grossBodyMovement
                     ? 'border-teal-500 bg-teal-50/60 text-teal-900'
                     : 'border-slate-200 bg-slate-50 text-slate-400'
                 }`}
               >
-                <div className="flex justify-between items-center mb-1">
-                  <span className="font-bold text-[11px]">Movements</span>
-                  <span className="font-mono text-[10px] font-bold">{grossBodyMovement ? '2 pts' : '0 pt'}</span>
+                <div className="flex items-center justify-between gap-1 mb-1.5 min-w-0">
+                  <span className="font-bold text-[11px] text-slate-800 truncate">Movements</span>
+                  <span className={`shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full font-mono ${
+                    grossBodyMovement ? 'bg-teal-100 text-teal-900' : 'bg-slate-200 text-slate-600'
+                  }`}>
+                    {grossBodyMovement ? '2 pts' : '0 pt'}
+                  </span>
                 </div>
                 <p className="text-[10px] line-clamp-2">≥3 discrete body/limb movements</p>
               </button>
@@ -1864,30 +1884,38 @@ export const LiveInputStudioView: React.FC<LiveInputStudioViewProps> = ({
               <button
                 type="button"
                 onClick={() => setFetalTone(prev => !prev)}
-                className={`p-2 rounded-lg border text-left transition ${
+                className={`p-2.5 rounded-lg border text-left transition ${
                   fetalTone
                     ? 'border-teal-500 bg-teal-50/60 text-teal-900'
                     : 'border-slate-200 bg-slate-50 text-slate-400'
                 }`}
               >
-                <div className="flex justify-between items-center mb-1">
-                  <span className="font-bold text-[11px]">Fetal Tone</span>
-                  <span className="font-mono text-[10px] font-bold">{fetalTone ? '2 pts' : '0 pt'}</span>
+                <div className="flex items-center justify-between gap-1 mb-1.5 min-w-0">
+                  <span className="font-bold text-[11px] text-slate-800 truncate">Fetal Tone</span>
+                  <span className={`shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full font-mono ${
+                    fetalTone ? 'bg-teal-100 text-teal-900' : 'bg-slate-200 text-slate-600'
+                  }`}>
+                    {fetalTone ? '2 pts' : '0 pt'}
+                  </span>
                 </div>
                 <p className="text-[10px] line-clamp-2">Active limb extension & return</p>
               </button>
 
               {/* Amniotic Fluid Volume (Auto-synced with SDP >= 2.0cm) */}
               <div
-                className={`p-2 rounded-lg border text-left ${
+                className={`p-2.5 rounded-lg border text-left ${
                   sdp >= 2.0
                     ? 'border-teal-500 bg-teal-50/60 text-teal-900'
                     : 'border-rose-300 bg-rose-50/60 text-rose-900'
                 }`}
               >
-                <div className="flex justify-between items-center mb-1">
-                  <span className="font-bold text-[11px]">Fluid (SDP)</span>
-                  <span className="font-mono text-[10px] font-bold">{sdp >= 2.0 ? '2 pts' : '0 pt'}</span>
+                <div className="flex items-center justify-between gap-1 mb-1.5 min-w-0">
+                  <span className="font-bold text-[11px] truncate">Fluid (SDP)</span>
+                  <span className={`shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full font-mono ${
+                    sdp >= 2.0 ? 'bg-teal-100 text-teal-900' : 'bg-rose-100 text-rose-900'
+                  }`}>
+                    {sdp >= 2.0 ? '2 pts' : '0 pt'}
+                  </span>
                 </div>
                 <p className="text-[10px] line-clamp-2">Pocket ≥2cm (Current: {sdp}cm)</p>
               </div>
@@ -1896,15 +1924,19 @@ export const LiveInputStudioView: React.FC<LiveInputStudioViewProps> = ({
               <button
                 type="button"
                 onClick={() => setReactiveNst(prev => !prev)}
-                className={`p-2 rounded-lg border text-left transition ${
+                className={`p-2.5 rounded-lg border text-left transition ${
                   reactiveNst
                     ? 'border-teal-500 bg-teal-50/60 text-teal-900'
                     : 'border-slate-200 bg-slate-50 text-slate-400'
                 }`}
               >
-                <div className="flex justify-between items-center mb-1">
-                  <span className="font-bold text-[11px]">Reactive NST</span>
-                  <span className="font-mono text-[10px] font-bold">{reactiveNst ? '2 pts' : '0 pt'}</span>
+                <div className="flex items-center justify-between gap-1 mb-1.5 min-w-0">
+                  <span className="font-bold text-[11px] text-slate-800 truncate">Reactive NST</span>
+                  <span className={`shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full font-mono ${
+                    reactiveNst ? 'bg-teal-100 text-teal-900' : 'bg-slate-200 text-slate-600'
+                  }`}>
+                    {reactiveNst ? '2 pts' : '0 pt'}
+                  </span>
                 </div>
                 <p className="text-[10px] line-clamp-2">≥2 accels in 20 min</p>
               </button>
@@ -1952,11 +1984,11 @@ export const LiveInputStudioView: React.FC<LiveInputStudioViewProps> = ({
                   onChange={e => setAfi(Number(e.target.value))}
                   className="w-full accent-teal-600 cursor-pointer mt-1"
                 />
-                <div className="flex justify-between text-[10px] text-slate-400 font-mono mt-1">
-                  <span className="text-rose-500 font-bold">&lt;5.0 Oligo</span>
-                  <span className="text-amber-600 font-semibold">5-8cm Low</span>
-                  <span className="text-emerald-600 font-semibold">8-20cm Normal</span>
-                  <span className="text-indigo-600">&gt;24cm Poly</span>
+                <div className="flex flex-wrap gap-x-2 gap-y-1 justify-between text-[9px] text-slate-500 font-mono mt-1 pt-0.5 select-none">
+                  <span className="text-rose-600 font-bold whitespace-nowrap">&lt;5.0 Oligo</span>
+                  <span className="text-amber-600 font-semibold whitespace-nowrap">5-8cm Low</span>
+                  <span className="text-emerald-600 font-semibold whitespace-nowrap">8-20cm Normal</span>
+                  <span className="text-indigo-600 font-semibold whitespace-nowrap">&gt;24cm Poly</span>
                 </div>
               </div>
 
@@ -1988,10 +2020,10 @@ export const LiveInputStudioView: React.FC<LiveInputStudioViewProps> = ({
                   onChange={e => setSdp(Number(e.target.value))}
                   className="w-full accent-teal-600 cursor-pointer mt-1"
                 />
-                <div className="flex justify-between text-[10px] text-slate-400 font-mono mt-1">
-                  <span className="text-rose-500 font-bold">&lt;2.0cm Oligo</span>
-                  <span className="text-emerald-600 font-semibold">2.0 - 8.0cm Normal</span>
-                  <span className="text-indigo-600">&gt;8.0cm Poly</span>
+                <div className="flex flex-wrap gap-x-2 gap-y-1 justify-between text-[9px] text-slate-500 font-mono mt-1 pt-0.5 select-none">
+                  <span className="text-rose-600 font-bold whitespace-nowrap">&lt;2.0cm Oligo</span>
+                  <span className="text-emerald-600 font-semibold whitespace-nowrap">2.0 - 8.0cm Normal</span>
+                  <span className="text-indigo-600 font-semibold whitespace-nowrap">&gt;8.0cm Poly</span>
                 </div>
               </div>
             </div>

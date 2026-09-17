@@ -30,7 +30,14 @@ import {
   GitBranch,
   Pill,
   RefreshCw,
-  Sliders
+  Sliders,
+  Eye,
+  Scale,
+  Droplet,
+  ClipboardCheck,
+  ShieldAlert,
+  History,
+  HeartPulse
 } from 'lucide-react';
 
 interface Visit {
@@ -150,7 +157,7 @@ const BENCHMARK_PATIENTS: PatientRecord[] = [
 
 export const ModelTrainingPipelineView: React.FC = () => {
   // Navigation tabs inside the training suite
-  const [activeSection, setActiveSection] = useState<'dataset' | 'features' | 'xgboost' | 'shap' | 'roadmap' | 'code'>('xgboost');
+  const [activeSection, setActiveSection] = useState<'dataset' | 'features' | 'xgboost' | 'shap' | 'roadmap' | 'code' | 'imaging'>('xgboost');
 
   // Selected patient for deep inspection
   const [selectedPatientId, setSelectedPatientId] = useState<string>('P001');
@@ -167,6 +174,337 @@ export const ModelTrainingPipelineView: React.FC = () => {
 
   // Selected feature row for SHAP inspection
   const [selectedVisitIndex, setSelectedVisitIndex] = useState<number>(2);
+
+  // Selected imaging model type: 'vit' or 'unet'
+  const [selectedImagingModel, setSelectedImagingModel] = useState<'vit' | 'unet'>('vit');
+
+  // Configuration state for ViT
+  const [vitPatchSize, setVitPatchSize] = useState<number>(16);
+  const [vitEmbedDim, setVitEmbedDim] = useState<number>(768);
+  const [vitDepth, setVitDepth] = useState<number>(12);
+  const [vitHeads, setVitHeads] = useState<number>(12);
+
+  // Configuration state for U-Net
+  const [unetBaseChannels, setUnetBaseChannels] = useState<number>(64);
+  const [unetAttention, setUnetAttention] = useState<boolean>(true);
+  const [unetUpsample, setUnetUpsample] = useState<'conv_transpose' | 'bilinear'>('conv_transpose');
+
+  // Training states for deep learning models
+  const [isImagingTraining, setIsImagingTraining] = useState<boolean>(false);
+  const [imagingEpoch, setImagingEpoch] = useState<number>(0);
+  const [imagingLogs, setImagingLogs] = useState<string[]>([]);
+  const [imagingLossHistory, setImagingLossHistory] = useState<number[]>([]);
+  const [imagingAccHistory, setImagingAccHistory] = useState<number[]>([]);
+
+  // Simulation timer for ViT/U-Net training
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    if (isImagingTraining) {
+      interval = setInterval(() => {
+        setImagingEpoch(prev => {
+          const next = prev + 1;
+          if (next >= 10) {
+            setIsImagingTraining(false);
+            if (interval) clearInterval(interval);
+            // Append completion log
+            setImagingLogs(logs => [
+              ...logs,
+              `[SUCCESS] PyTorch training pipeline completed successfully in 5.2s.`,
+              `[SUCCESS] Final Optimized Weights Saved: best_${selectedImagingModel}_weights.pth`,
+              `[SUCCESS] Model validated on held-out test cohort.`
+            ]);
+            return 10;
+          }
+          // Compute simulated loss and metrics
+          const baseLoss = selectedImagingModel === 'vit' ? 0.72 : 0.65;
+          const loss = Number((baseLoss * Math.pow(0.72, next) + Math.random() * 0.03).toFixed(4));
+          
+          const baseAcc = selectedImagingModel === 'vit' ? 76.5 : 0.785;
+          const metric = selectedImagingModel === 'vit' 
+            ? Number((baseAcc + (21.5 * (1 - Math.pow(0.68, next))) + Math.random() * 0.7).toFixed(1))
+            : Number((baseAcc + (0.19 * (1 - Math.pow(0.68, next))) + Math.random() * 0.007).toFixed(3));
+          
+          setImagingLossHistory(h => [...h, loss]);
+          setImagingAccHistory(a => [...a, metric]);
+
+          const logMessage = selectedImagingModel === 'vit'
+            ? `Epoch [${next}/10] - Loss: ${loss.toFixed(4)} - Training Acc: ${metric.toFixed(1)}% - Val Acc: ${(metric - 1.4).toFixed(1)}%`
+            : `Epoch [${next}/10] - Loss: ${loss.toFixed(4)} - Mean Dice Coeff: ${metric.toFixed(3)} - Val Dice Coeff: ${(metric - 0.012).toFixed(3)}`;
+
+          setImagingLogs(logs => [...logs, logMessage]);
+          return next;
+        });
+      }, 500);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isImagingTraining, selectedImagingModel]);
+
+  const handleStartImagingTraining = () => {
+    setIsImagingTraining(true);
+    setImagingEpoch(0);
+    setImagingLossHistory([]);
+    setImagingAccHistory([]);
+    setImagingLogs([
+      `[INFO] Initializing PyTorch 2.2+ CUDA training context...`,
+      `[INFO] Target GPU: NVIDIA A100-SXM4-40GB (Device 0)`,
+      `[INFO] Model Architecture: ${selectedImagingModel.toUpperCase()} - Customized Parameters Loaded.`,
+      selectedImagingModel === 'vit'
+        ? `[INFO] ViT Config: Patches=${vitPatchSize}x${vitPatchSize}, EmbedDim=${vitEmbedDim}, Depth=${vitDepth}, Heads=${vitHeads}, Params: ${((vitEmbedDim * vitEmbedDim * vitDepth * 12) / 1000000).toFixed(1)}M`
+        : `[INFO] U-Net Config: BaseChannels=${unetBaseChannels}, AttentionGate=${unetAttention ? 'YES' : 'NO'}, Upsample=${unetUpsample.toUpperCase()}, Params: ${((unetBaseChannels * unetBaseChannels * 350) / 1000).toFixed(1)}K`,
+      `[INFO] Loading clinical ultrasound image repository (850 annotated frames)...`,
+      `[INFO] Data pipelines configured. Commencing 10-epoch optimizer loop...`
+    ]);
+  };
+
+  // End-to-End Clinical AI Pipeline Visualizer state
+  const [selectedPipelineStage, setSelectedPipelineStage] = useState<'ultrasound' | 'vit_swin' | 'unet' | 'calipers' | 'efw' | 'afi_dvp' | 'digital_twin' | 'xgboost' | 'shap' | 'clinician'>('ultrasound');
+
+  // Clinical AI Pipeline interactive parameters
+  const [caliperBpd, setCaliperBpd] = useState<number>(82.4);
+  const [caliperHc, setCaliperHc] = useState<number>(301.2);
+  const [caliperAc, setCaliperAc] = useState<number>(284.5);
+  const [caliperFl, setCaliperFl] = useState<number>(62.1);
+  const [caliperOfd, setCaliperOfd] = useState<number>(104.2);
+
+  const [fluidQ1, setFluidQ1] = useState<number>(4.2);
+  const [fluidQ2, setFluidQ2] = useState<number>(3.8);
+  const [fluidQ3, setFluidQ3] = useState<number>(5.1);
+  const [fluidQ4, setFluidQ4] = useState<number>(4.5);
+
+  const [clinicianComments, setClinicianComments] = useState<string>('Symmetrical growth profiles. Standard plane validated successfully. Amniotic fluid indices are within normal physiological bounds.');
+  const [isApproved, setIsApproved] = useState<boolean>(false);
+  const [approvedBy, setApprovedBy] = useState<string>('Dr. Sarah Jenkins, MFM');
+
+  // Dynamically compute Estimated Fetal Weight (EFW) using Hadlock 4-Parameter Formula
+  const computedEfw = useMemo(() => {
+    // Convert to cm for Hadlock standard inputs
+    const bpd_cm = caliperBpd / 10;
+    const hc_cm = caliperHc / 10;
+    const ac_cm = caliperAc / 10;
+    const fl_cm = caliperFl / 10;
+
+    // Hadlock Formula 4 (BPD, HC, AC, FL)
+    // Log10 EFW = 1.3596 + 0.000611*BPD*AC + 0.0424*AC + 0.174*FL + 0.000612*HC*FL - 0.00338*AC*FL
+    const logEfw = 1.3596 + 
+                    (0.000611 * bpd_cm * ac_cm) + 
+                    (0.0424 * ac_cm) + 
+                    (0.174 * fl_cm) + 
+                    (0.000612 * hc_cm * fl_cm) - 
+                    (0.00338 * ac_cm * fl_cm);
+    
+    const grams = Math.pow(10, logEfw);
+    return Math.round(grams);
+  }, [caliperBpd, caliperHc, caliperAc, caliperFl]);
+
+  // Dynamically compute Hadlock Growth Percentile using standard normal approximation at 31 Weeks Gestation
+  const computedPercentile = useMemo(() => {
+    // Gestation target is 31w (Mean EFW: ~1620g, SD: ~180g)
+    const mean = 1620;
+    const sd = 180;
+    const z = (computedEfw - mean) / sd;
+    
+    // Cumulative distribution function of standard normal distribution (precise numerical approximation)
+    const t = 1 / (1 + 0.2316419 * Math.abs(z));
+    const d = 0.3989423 * Math.exp(-z * z / 2);
+    const p = 1 - d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
+    const cdf = z >= 0 ? p : 1 - p;
+    return Math.min(Math.max(Math.round(cdf * 100), 1), 99);
+  }, [computedEfw]);
+
+  const pyTorchCode = useMemo(() => {
+    if (selectedImagingModel === 'vit') {
+      return `import torch
+import torch.nn as nn
+
+class PatchEmbedding(nn.Module):
+    def __init__(self, in_channels=1, patch_size=${vitPatchSize}, embed_dim=${vitEmbedDim}, img_size=256):
+        super().__init__()
+        self.patch_size = patch_size
+        self.num_patches = (img_size // patch_size) ** 2
+        self.proj = nn.Conv2d(in_channels, embed_dim, kernel_size=patch_size, stride=patch_size)
+
+    def forward(self, x):
+        return self.proj(x).flatten(2).transpose(1, 2)
+
+class TransformerBlock(nn.Module):
+    def __init__(self, embed_dim=${vitEmbedDim}, num_heads=${vitHeads}, mlp_ratio=4.0, dropout=0.1):
+        super().__init__()
+        self.norm1 = nn.LayerNorm(embed_dim)
+        self.attn = nn.MultiheadAttention(embed_dim, num_heads, dropout=dropout, batch_first=True)
+        self.norm2 = nn.LayerNorm(embed_dim)
+        self.mlp = nn.Sequential(
+            nn.Linear(embed_dim, int(embed_dim * mlp_ratio)),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(int(embed_dim * mlp_ratio), embed_dim),
+            nn.Dropout(dropout)
+        )
+
+    def forward(self, x):
+        attn_out, _ = self.attn(self.norm1(x), self.norm1(x), self.norm1(x))
+        x = x + attn_out
+        x = x + self.mlp(self.norm2(x))
+        return x
+
+class VisionTransformer(nn.Module):
+    def __init__(self, img_size=256, patch_size=${vitPatchSize}, in_channels=1, num_classes=3, embed_dim=${vitEmbedDim}, depth=${vitDepth}, num_heads=${vitHeads}, dropout=0.1):
+        super().__init__()
+        self.patch_embed = PatchEmbedding(in_channels, patch_size, embed_dim, img_size)
+        num_patches = self.patch_embed.num_patches
+
+        self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim))
+        self.pos_embed = nn.Parameter(torch.zeros(1, num_patches + 1, embed_dim))
+        self.pos_drop = nn.Dropout(dropout)
+
+        self.blocks = nn.ModuleList([
+            TransformerBlock(embed_dim, num_heads, mlp_ratio=4.0, dropout=dropout)
+            for _ in range(depth)
+        ])
+        self.norm = nn.LayerNorm(embed_dim)
+        self.head = nn.Linear(embed_dim, num_classes)
+
+    def forward(self, x):
+        B = x.shape[0]
+        x = self.patch_embed(x)
+        cls_tokens = self.cls_token.expand(B, -1, -1)
+        x = torch.cat((cls_tokens, x), dim=1)
+        x = x + self.pos_embed
+        x = self.pos_drop(x)
+
+        for block in self.blocks:
+            x = block(x)
+
+        x = self.norm(x)
+        return self.head(x[:, 0])
+`;
+    } else {
+      return `import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+class AttentionGate(nn.Module):
+    def __init__(self, F_g, F_l, F_int):
+        super().__init__()
+        self.W_g = nn.Sequential(
+            nn.Conv2d(F_g, F_int, kernel_size=1, stride=1, padding=0, bias=True),
+            nn.BatchNorm2d(F_int)
+        )
+        self.W_x = nn.Sequential(
+            nn.Conv2d(F_l, F_int, kernel_size=1, stride=1, padding=0, bias=True),
+            nn.BatchNorm2d(F_int)
+        )
+        self.psi = nn.Sequential(
+            nn.Conv2d(F_int, 1, kernel_size=1, stride=1, padding=0, bias=True),
+            nn.BatchNorm2d(1),
+            nn.Sigmoid()
+        )
+        self.relu = nn.ReLU(inplace=True)
+
+    def forward(self, g, x):
+        g1 = self.W_g(g)
+        x1 = self.W_x(x)
+        if g1.shape[2:] != x1.shape[2:]:
+            g1 = F.interpolate(g1, size=x1.shape[2:], mode='bilinear', align_corners=True)
+        psi = self.psi(self.relu(g1 + x1))
+        return x * psi
+
+class ConvBlock(nn.Module):
+    def __init__(self, in_ch, out_ch):
+        super().__init__()
+        self.conv = nn.Sequential(
+            nn.Conv2d(in_ch, out_ch, kernel_size=3, padding=1, bias=True),
+            nn.BatchNorm2d(out_ch),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(out_ch, out_ch, kernel_size=3, padding=1, bias=True),
+            nn.BatchNorm2d(out_ch),
+            nn.ReLU(inplace=True)
+        )
+
+    def forward(self, x):
+        return self.conv(x)
+
+class AttentionUNet(nn.Module):
+    def __init__(self, in_channels=1, num_classes=4, base_channels=${unetBaseChannels}):
+        super().__init__()
+        self.Maxpool = nn.MaxPool2d(kernel_size=2, stride=2)
+
+        # Encoder layers
+        self.Conv1 = ConvBlock(in_channels, base_channels)
+        self.Conv2 = ConvBlock(base_channels, base_channels * 2)
+        self.Conv3 = ConvBlock(base_channels * 2, base_channels * 4)
+        self.Conv4 = ConvBlock(base_channels * 4, base_channels * 8)
+        self.Conv5 = ConvBlock(base_channels * 8, base_channels * 16)
+
+        # Decoder & Upsampling
+        self.Up4 = nn.ConvTranspose2d(base_channels * 16, base_channels * 8, kernel_size=2, stride=2)
+        self.Att4 = AttentionGate(F_g=base_channels * 8, F_l=base_channels * 8, F_int=base_channels * 4)
+        self.Up_conv4 = ConvBlock(base_channels * 16, base_channels * 8)
+
+        self.Up3 = nn.ConvTranspose2d(base_channels * 8, base_channels * 4, kernel_size=2, stride=2)
+        self.Att3 = AttentionGate(F_g=base_channels * 4, F_l=base_channels * 4, F_int=base_channels * 2)
+        self.Up_conv3 = ConvBlock(base_channels * 8, base_channels * 4)
+
+        self.Up2 = nn.ConvTranspose2d(base_channels * 4, base_channels * 2, kernel_size=2, stride=2)
+        self.Att2 = AttentionGate(F_g=base_channels * 2, F_l=base_channels * 2, F_int=base_channels)
+        self.Up_conv2 = ConvBlock(base_channels * 4, base_channels * 2)
+
+        self.Up1 = nn.ConvTranspose2d(base_channels * 2, base_channels, kernel_size=2, stride=2)
+        self.Att1 = AttentionGate(F_g=base_channels, F_l=base_channels, F_int=base_channels // 2)
+        self.Up_conv1 = ConvBlock(base_channels * 2, base_channels)
+
+        self.Conv_1x1 = nn.Conv2d(base_channels, num_classes, kernel_size=1, stride=1, padding=0)
+
+    def forward(self, x):
+        e1 = self.Conv1(x)
+        e2 = self.Conv2(self.Maxpool(e1))
+        e3 = self.Conv3(self.Maxpool(e2))
+        e4 = self.Conv4(self.Maxpool(e3))
+        e5 = self.Conv5(self.Maxpool(e4))
+
+        # Decoder with skip-connections
+        d4 = self.Up4(e5)
+        x4 = self.Att4(g=d4, x=e4) if ${unetAttention ? 'True' : 'False'} else e4
+        d4 = torch.cat((x4, d4), dim=1)
+        d4 = self.Up_conv4(d4)
+
+        d3 = self.Up3(d4)
+        x3 = self.Att3(g=d3, x=e3) if ${unetAttention ? 'True' : 'False'} else e3
+        d3 = torch.cat((x3, d3), dim=1)
+        d3 = self.Up_conv3(d3)
+
+        d2 = self.Up2(d3)
+        x2 = self.Att2(g=d2, x=e2) if ${unetAttention ? 'True' : 'False'} else e2
+        d2 = torch.cat((x2, d2), dim=1)
+        d2 = self.Up_conv2(d2)
+
+        d1 = self.Up1(d2)
+        x1 = self.Att1(g=d1, x=e1) if ${unetAttention ? 'True' : 'False'} else e1
+        d1 = torch.cat((x1, d1), dim=1)
+        d1 = self.Up_conv1(d1)
+
+        return self.Conv_1x1(d1)
+`;
+    }
+  }, [selectedImagingModel, vitPatchSize, vitEmbedDim, vitDepth, vitHeads, unetBaseChannels, unetAttention, unetUpsample]);
+
+  const [hasCopiedPyTorchCode, setHasCopiedPyTorchCode] = useState<boolean>(false);
+  const handleCopyPyTorchCode = () => {
+    navigator.clipboard.writeText(pyTorchCode);
+    setHasCopiedPyTorchCode(true);
+    setTimeout(() => setHasCopiedPyTorchCode(false), 2000);
+  };
+
+  const handleDownloadPyTorchCode = () => {
+    const element = document.createElement("a");
+    const file = new Blob([pyTorchCode], { type: 'text/plain' });
+    element.href = URL.createObjectURL(file);
+    element.download = `pregnancy_twin_${selectedImagingModel}_model.py`;
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+  };
 
   // Selected patient object
   const currentPatient = useMemo(() => {
@@ -636,7 +974,19 @@ if __name__ == '__main__':
             }`}
           >
             <GitBranch className="w-3.5 h-3.5" />
-            <span>5. Multi-Model Roadmap (LSTM / GNN)</span>
+            <span>5. Multi-Model Roadmap</span>
+          </button>
+
+          <button
+            onClick={() => setActiveSection('imaging')}
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
+              activeSection === 'imaging'
+                ? 'bg-teal-600 text-white font-bold shadow-2xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+            }`}
+          >
+            <Cpu className="w-3.5 h-3.5" />
+            <span>6. Imaging AI Builder (ViT & U-Net)</span>
           </button>
 
           <button
@@ -648,7 +998,7 @@ if __name__ == '__main__':
             }`}
           >
             <FileCode className="w-3.5 h-3.5" />
-            <span>6. Python Source (train_model.py)</span>
+            <span>7. Python Source (train_model.py)</span>
           </button>
         </div>
       </div>
@@ -1263,9 +1613,741 @@ if __name__ == '__main__':
 
       {/* SECTION 5: MULTI-MODEL ROADMAP */}
       {activeSection === 'roadmap' && (
-        <div className="space-y-5">
-          {/* Hybrid Strategy Card */}
-          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-2xs space-y-4">
+        <div className="space-y-6">
+          {/* Top Integrated Pipeline Banner */}
+          <div className="bg-gradient-to-r from-slate-900 to-teal-950 border border-teal-900 rounded-2xl p-6 text-white shadow-xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-80 h-80 bg-teal-500/10 rounded-full blur-3xl -mr-16 -mt-16" />
+            <div className="relative space-y-2">
+              <span className="px-2.5 py-1 text-[10px] font-bold tracking-wider uppercase bg-teal-500/20 border border-teal-500/30 rounded-full text-teal-300">
+                Active Integrated Architecture
+              </span>
+              <h2 className="text-xl font-black text-white tracking-tight">PregnancyTwin™ End-to-End Clinical AI Pipeline</h2>
+              <p className="text-xs text-slate-300 max-w-3xl leading-relaxed">
+                Tracing the complete clinical translation cascade. Click any phase along the core signal chain below to inspect its live neural representation, dynamic mathematical equations, and interactive clinician validation controls.
+              </p>
+            </div>
+          </div>
+
+          {/* Interactive Pipeline Diagram Timeline */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-2xs overflow-x-auto scrollbar-thin select-none">
+            <div className="flex items-center min-w-[1050px] space-x-1.5 p-1">
+              {[
+                { id: 'ultrasound', label: '1. Ingestion', sub: 'DICOM In', icon: Eye, color: 'text-indigo-600 bg-indigo-50 border-indigo-100' },
+                { id: 'vit_swin', label: '2. Swin-ViT', sub: 'Plane Quality', icon: Cpu, color: 'text-teal-600 bg-teal-50 border-teal-100' },
+                { id: 'unet', label: '3. nnU-Net', sub: 'Segmentation', icon: Layers, color: 'text-emerald-600 bg-emerald-50 border-emerald-100' },
+                { id: 'calipers', label: '4. Calipers', sub: 'HC/BPD/FL/AC', icon: Sliders, color: 'text-amber-600 bg-amber-50 border-amber-100' },
+                { id: 'efw', label: '5. Hadlock %', sub: 'Growth Curve', icon: Scale, color: 'text-rose-600 bg-rose-50 border-rose-100' },
+                { id: 'afi_dvp', label: '6. AFI/DVP', sub: 'Fluid Vol', icon: Droplet, color: 'text-sky-600 bg-sky-50 border-sky-100' },
+                { id: 'digital_twin', label: '7. Twin-A/B', sub: 'Discordance', icon: HeartPulse, color: 'text-pink-600 bg-pink-50 border-pink-100' },
+                { id: 'xgboost', label: '8. XGBoost', sub: 'Risk Forecast', icon: ShieldAlert, color: 'text-violet-600 bg-violet-50 border-violet-100' },
+                { id: 'shap', label: '9. SHAP Att', sub: 'Waterfall', icon: Sparkles, color: 'text-purple-600 bg-purple-50 border-purple-100' },
+                { id: 'clinician', label: '10. Approval', sub: 'Sign & Lock', icon: ClipboardCheck, color: 'text-emerald-600 bg-emerald-50 border-emerald-100' }
+              ].map((step, idx, arr) => {
+                const isSelected = selectedPipelineStage === step.id;
+                const Icon = step.icon;
+                return (
+                  <React.Fragment key={step.id}>
+                    <button
+                      onClick={() => setSelectedPipelineStage(step.id as any)}
+                      className={`flex flex-col items-center flex-1 text-center p-2.5 rounded-xl border transition-all cursor-pointer ${
+                        isSelected
+                          ? 'bg-slate-900 border-slate-900 text-white shadow-md scale-105 font-bold'
+                          : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700'
+                      }`}
+                    >
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center border mb-1.5 ${isSelected ? 'bg-teal-500 border-teal-400 text-white' : step.color}`}>
+                        <Icon className="w-4 h-4 animate-pulse" />
+                      </div>
+                      <span className="text-[11px] font-bold block truncate max-w-full leading-tight">{step.label}</span>
+                      <span className={`text-[9px] block ${isSelected ? 'text-teal-300' : 'text-slate-400'}`}>{step.sub}</span>
+                    </button>
+                    {idx < arr.length - 1 && (
+                      <div className="flex items-center text-slate-300">
+                        <ArrowRight className="w-4 h-4 shrink-0" />
+                      </div>
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Core Pipeline Stage Sandbox Dashboard */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* Left Box (Interactive Playground): 7 Cols */}
+            <div className="lg:col-span-7 bg-white border border-slate-200 rounded-2xl p-6 shadow-2xs space-y-5 flex flex-col justify-between min-h-[500px]">
+              
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3 shrink-0">
+                <div className="flex items-center space-x-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-teal-500 animate-ping" />
+                  <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
+                    {selectedPipelineStage === 'ultrasound' && 'Ultrasound Image DICOM Ingest'}
+                    {selectedPipelineStage === 'vit_swin' && 'Swin-ViT Plane & Quality Audit'}
+                    {selectedPipelineStage === 'unet' && 'nnU-Net Multi-Organ Segmenter'}
+                    {selectedPipelineStage === 'calipers' && 'Interactive Spatial Caliper Tools'}
+                    {selectedPipelineStage === 'efw' && 'Hadlock Dynamic Growth Computer'}
+                    {selectedPipelineStage === 'afi_dvp' && 'AFI / DVP Amniotic Fluid Pocket Matrix'}
+                    {selectedPipelineStage === 'digital_twin' && 'Twin-A vs Twin-B Longitudinal Comparison'}
+                    {selectedPipelineStage === 'xgboost' && 'XGBoost Clinical Risk Classifier'}
+                    {selectedPipelineStage === 'shap' && 'Patient-Specific SHAP Attributions'}
+                    {selectedPipelineStage === 'clinician' && 'Clinical Sign-off & Audit Log Verification'}
+                  </h3>
+                </div>
+                <span className="text-[10px] bg-slate-100 text-slate-600 font-mono font-bold px-2 py-0.5 rounded border border-slate-200">
+                  Interactive Workspace
+                </span>
+              </div>
+
+              {/* Dynamic Interactive Body based on Selected Stage */}
+              <div className="grow flex flex-col justify-center py-2">
+                
+                {/* 1. Raw Ingest */}
+                {selectedPipelineStage === 'ultrasound' && (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {/* Live Image Scan Mock */}
+                      <div className="relative aspect-square rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-center overflow-hidden">
+                        <div className="absolute inset-0 bg-radial-at-c from-slate-900 via-slate-950 to-slate-950" />
+                        
+                        {/* Ultrasound Scan Texture Simulation */}
+                        <div className="absolute inset-0 bg-[linear-gradient(rgba(18,24,38,0.3)_1px,transparent_1px)] bg-[size:100%_4px] opacity-70" />
+                        <div className="absolute w-28 h-28 rounded-full border border-dashed border-slate-800 opacity-60" />
+                        <div className="absolute w-20 h-20 bg-slate-800/10 rounded-full blur-md" />
+                        
+                        {/* Dotted sector probe bounds */}
+                        <svg className="absolute inset-0 w-full h-full stroke-slate-800 stroke-[1.5] fill-none" viewBox="0 0 200 200">
+                          <path d="M100,20 L40,180 A80,80 0 0,0 160,180 Z" className="opacity-30" />
+                        </svg>
+
+                        <span className="absolute top-2 left-2 text-[8px] font-mono text-slate-400">FPS: 32 • Gain: 58dB</span>
+                        <span className="absolute top-2 right-2 text-[8px] font-mono text-slate-400">Power: 100%</span>
+                        <span className="absolute bottom-2 left-2 text-[8px] font-mono text-teal-400 font-bold">DICOM Frame Captured</span>
+                        <span className="absolute bottom-2 right-2 text-[8px] font-mono text-slate-400 font-bold">PACS-Link Connected</span>
+                      </div>
+
+                      {/* DICOM Metadata Table */}
+                      <div className="space-y-3 bg-slate-50 border border-slate-100 rounded-xl p-3 text-xs justify-center flex flex-col">
+                        <div className="border-b border-slate-200 pb-2">
+                          <strong className="text-slate-800 block">DICOM Header Tags</strong>
+                          <span className="text-[10px] text-slate-400">Standard PACS metadata</span>
+                        </div>
+                        <div className="space-y-1.5 font-mono text-[10px]">
+                          <div className="flex justify-between"><span className="text-slate-500">Patient ID:</span> <span className="font-bold text-slate-800">PT-3112A</span></div>
+                          <div className="flex justify-between"><span className="text-slate-500">Transducer:</span> <span className="text-teal-700 font-bold">C5-1 Convex</span></div>
+                          <div className="flex justify-between"><span className="text-slate-500">Acoustic Power:</span> <span className="text-slate-700">MI=1.2 | TIB=0.4</span></div>
+                          <div className="flex justify-between"><span className="text-slate-500">DICOM Transfer:</span> <span className="text-emerald-700 font-bold">RAW Lossless</span></div>
+                        </div>
+
+                        <div className="pt-2 border-t border-slate-200 space-y-1">
+                          <span className="font-bold text-slate-700 text-[10px] block">Speckle Noise Level Filter</span>
+                          <div className="flex items-center justify-between text-[10px] font-mono text-indigo-800 bg-indigo-50 border border-indigo-100 p-1.5 rounded">
+                            <span>Speckle Reduction active</span>
+                            <span className="font-bold">PyDICOM v2.4</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 2. Swin-ViT Quality */}
+                {selectedPipelineStage === 'vit_swin' && (
+                  <div className="space-y-4">
+                    <div className="p-3 bg-teal-50 border border-teal-100 rounded-xl text-xs space-y-1 text-teal-950">
+                      <div className="flex items-center space-x-1.5 font-bold text-teal-900">
+                        <CheckCircle2 className="w-4 h-4 text-teal-700" />
+                        <span>Swin-ViT Validation Success</span>
+                      </div>
+                      <p className="text-[11px] leading-relaxed">
+                        The neural network analyzes structural landmarks to ensure the clinician has locked the optimal trans-ventricular plane, preventing measurement bias.
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {/* Quality Score Circle */}
+                      <div className="flex flex-col items-center justify-center bg-slate-50 border border-slate-200 rounded-xl p-4 text-center">
+                        <div className="relative w-24 h-24 flex items-center justify-center">
+                          <svg className="absolute w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                            <path className="text-slate-100 stroke-[3] fill-none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                            <path className="text-teal-600 stroke-[3] fill-none stroke-dasharray-[98_100]" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                          </svg>
+                          <span className="text-lg font-black font-mono text-slate-800">98.4%</span>
+                        </div>
+                        <span className="text-[11px] font-bold text-slate-700 block mt-2">Plane Quality Score</span>
+                        <span className="text-[9px] text-slate-400">Acceptable threshold &gt; 90.0%</span>
+                      </div>
+
+                      {/* Checklist */}
+                      <div className="space-y-2 text-xs">
+                        <span className="font-bold text-slate-700 block text-[10px] uppercase">Plane Landmark Detection Checklist</span>
+                        {[
+                          { name: 'Thalamic Nuclei Alignment', conf: '99.8%' },
+                          { name: 'Cavum Septum Pellucidum (CSP)', conf: '98.5%' },
+                          { name: 'Symmetric Cerebellum Hemi', conf: '97.2%' },
+                          { name: 'Insula Contour Definition', conf: '95.9%' }
+                        ].map((item, i) => (
+                          <div key={i} className="flex justify-between items-center p-2 bg-slate-50 border border-slate-100 rounded-lg">
+                            <span className="font-semibold text-slate-800">{item.name}</span>
+                            <span className="font-mono font-bold text-teal-800 bg-teal-50 px-1.5 py-0.5 rounded text-[10px]">{item.conf}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 3. nnU-Net Segmentation */}
+                {selectedPipelineStage === 'unet' && (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {/* Segmentation Mask Overlay Visual */}
+                      <div className="relative aspect-square rounded-xl bg-slate-950 border border-slate-800 overflow-hidden flex items-center justify-center">
+                        <div className="absolute inset-0 bg-radial-at-c from-slate-900 via-slate-950 to-slate-950" />
+                        
+                        {/* Skull mask */}
+                        <div className="absolute w-24 h-20 rounded-full border-2 border-emerald-400 bg-emerald-400/20 transform rotate-12 flex items-center justify-center">
+                          <span className="text-[8px] font-mono font-bold text-emerald-200">Skull Mask</span>
+                        </div>
+                        {/* Deep fluid pockets mask */}
+                        <div className="absolute w-12 h-10 rounded-xl border border-sky-400 bg-sky-400/20 bottom-3 right-3 flex items-center justify-center">
+                          <span className="text-[8px] font-mono font-bold text-sky-200">Fluid</span>
+                        </div>
+
+                        <span className="absolute bottom-2 left-2 text-[8px] font-mono text-emerald-400 font-bold">nnU-Net Segmentation Mask</span>
+                        <span className="absolute top-2 right-2 text-[8px] font-mono text-slate-400 font-bold">DICE: 0.982</span>
+                      </div>
+
+                      {/* Segmentation Stats */}
+                      <div className="space-y-3 justify-center flex flex-col text-xs">
+                        <div>
+                          <span className="font-bold text-slate-800 block text-[11px] uppercase tracking-wider">Semantic Pixel Mapping</span>
+                          <p className="text-[11px] text-slate-500 mt-0.5">nnU-Net identifies fetal boundaries automatically at pixel-level resolution.</p>
+                        </div>
+
+                        <div className="space-y-2">
+                          <div className="p-2.5 bg-emerald-50 border border-emerald-100 rounded-lg flex items-center justify-between">
+                            <div>
+                              <strong className="text-emerald-950 block">Dice Similarity Coefficient</strong>
+                              <span className="text-[10px] text-emerald-700">Pixel overlap alignment</span>
+                            </div>
+                            <span className="font-mono text-emerald-900 font-black text-sm">0.982</span>
+                          </div>
+
+                          <div className="p-2.5 bg-slate-50 border border-slate-100 rounded-lg flex items-center justify-between">
+                            <div>
+                              <strong className="text-slate-800 block">Jaccard Index (IoU)</strong>
+                              <span className="text-[10px] text-slate-500">Intersection over Union</span>
+                            </div>
+                            <span className="font-mono text-slate-700 font-black text-sm">0.965</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 4. Caliper Extraction */}
+                {selectedPipelineStage === 'calipers' && (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {/* Dotted crosshair caliper visualization overlay */}
+                      <div className="relative aspect-square rounded-xl bg-slate-950 border border-slate-800 overflow-hidden flex items-center justify-center">
+                        <div className="absolute inset-0 bg-radial-at-c from-slate-900 via-slate-950 to-slate-950" />
+                        
+                        {/* Outer skull bounds and measurements crosshair */}
+                        <div className="absolute w-24 h-20 rounded-full border border-dashed border-teal-500/30 transform rotate-12 flex items-center justify-center">
+                          {/* BPD horizontal caliper line */}
+                          <div className="absolute w-full h-[1.5px] bg-amber-400 flex justify-between items-center">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 -ml-0.5" />
+                            <span className="text-[8px] font-mono bg-slate-900 text-amber-300 font-bold px-1 rounded -translate-y-2">BPD: {caliperBpd}mm</span>
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 -mr-0.5" />
+                          </div>
+                          {/* OFD vertical caliper line */}
+                          <div className="absolute h-full w-[1.5px] bg-teal-400 flex flex-col justify-between items-center">
+                            <span className="w-1.5 h-1.5 rounded-full bg-teal-500 -mt-0.5" />
+                            <span className="text-[8px] font-mono bg-slate-900 text-teal-300 font-bold px-1 rounded translate-x-4">OFD: {caliperOfd}mm</span>
+                            <span className="w-1.5 h-1.5 rounded-full bg-teal-500 -mb-0.5" />
+                          </div>
+                        </div>
+
+                        <span className="absolute bottom-2 left-2 text-[8px] font-mono text-amber-400 font-bold">Dynamic Caliper Coordinate Alignment</span>
+                        <span className="absolute top-2 right-2 text-[8px] font-mono text-slate-500">1 pixel = 0.38 mm</span>
+                      </div>
+
+                      {/* Caliper Sliders */}
+                      <div className="space-y-3 bg-slate-50 border border-slate-100 rounded-xl p-3 text-xs justify-center flex flex-col">
+                        <span className="font-bold text-slate-800 text-[10px] uppercase block border-b border-slate-200 pb-1">Sonographic Caliper Controls</span>
+                        
+                        {/* BPD Slider */}
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-[10px] text-slate-600">
+                            <label htmlFor="bpd-slider">BPD (Biparietal Diameter)</label>
+                            <span className="font-mono font-bold text-amber-700">{caliperBpd} mm</span>
+                          </div>
+                          <input id="bpd-slider" type="range" min={60} max={100} step={0.1} value={caliperBpd} onChange={e => setCaliperBpd(Number(e.target.value))} className="w-full accent-amber-500 cursor-pointer" />
+                        </div>
+
+                        {/* HC Slider */}
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-[10px] text-slate-600">
+                            <label htmlFor="hc-slider">HC (Head Circumference)</label>
+                            <span className="font-mono font-bold text-teal-700">{caliperHc} mm</span>
+                          </div>
+                          <input id="hc-slider" type="range" min={220} max={360} step={0.1} value={caliperHc} onChange={e => setCaliperHc(Number(e.target.value))} className="w-full accent-teal-600 cursor-pointer" />
+                        </div>
+
+                        {/* AC Slider */}
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-[10px] text-slate-600">
+                            <label htmlFor="ac-slider">AC (Abdominal Circumference)</label>
+                            <span className="font-mono font-bold text-indigo-700">{caliperAc} mm</span>
+                          </div>
+                          <input id="ac-slider" type="range" min={200} max={340} step={0.1} value={caliperAc} onChange={e => setCaliperAc(Number(e.target.value))} className="w-full accent-indigo-600 cursor-pointer" />
+                        </div>
+
+                        {/* FL Slider */}
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-[10px] text-slate-600">
+                            <label htmlFor="fl-slider">FL (Femur Length)</label>
+                            <span className="font-mono font-bold text-rose-700">{caliperFl} mm</span>
+                          </div>
+                          <input id="fl-slider" type="range" min={40} max={80} step={0.1} value={caliperFl} onChange={e => setCaliperFl(Number(e.target.value))} className="w-full accent-rose-500 cursor-pointer" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 5. Hadlock Dynamic weight percentiles */}
+                {selectedPipelineStage === 'efw' && (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {/* Weight Display Card */}
+                      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 text-center text-white flex flex-col justify-between min-h-[180px]">
+                        <div>
+                          <span className="text-[10px] font-mono tracking-wider text-slate-400 block uppercase">Estimated Fetal Weight (EFW)</span>
+                          <span className="text-3xl font-black font-mono text-teal-300 block mt-1.5">{computedEfw} g</span>
+                          <span className="text-xs text-slate-300 block mt-1">
+                            {Math.floor(computedEfw / 453.592)} lbs {Math.round((computedEfw % 453.592) / 28.3495)} oz
+                          </span>
+                        </div>
+
+                        <div className="p-2 bg-teal-500/10 border border-teal-500/20 rounded-xl mt-3 text-left">
+                          <span className="text-[9px] font-mono text-teal-200 block font-bold">Standard Formula Applied:</span>
+                          <span className="text-[9px] text-slate-300 block font-mono">Hadlock-4 Multivariable Reg</span>
+                        </div>
+                      </div>
+
+                      {/* Growth Percentile and Z-score */}
+                      <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 flex flex-col justify-between min-h-[180px]">
+                        <div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-bold text-slate-500 uppercase">Growth Percentile</span>
+                            <span className="text-[10px] px-1.5 py-0.5 font-bold font-mono text-teal-800 bg-teal-100 rounded">
+                              31 Weeks
+                            </span>
+                          </div>
+                          <span className="text-3xl font-black text-slate-800 font-mono mt-1 block">
+                            {computedPercentile}th %
+                          </span>
+                        </div>
+
+                        {/* Zone classifier */}
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between text-[10px] font-semibold text-slate-600">
+                            <span>SGA (&lt;10%)</span>
+                            <span className="font-bold text-emerald-600">AGA (10%-90%)</span>
+                            <span>LGA (&gt;90%)</span>
+                          </div>
+                          <div className="w-full h-2 rounded-full bg-slate-200 relative overflow-hidden">
+                            <div className="absolute left-[10%] right-[10%] h-full bg-emerald-500/25" />
+                            <div className="absolute top-0 bottom-0 w-2.5 h-2.5 rounded-full bg-teal-700 shadow-xs transition-all duration-300 border border-white" style={{ left: `${computedPercentile}%` }} />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 6. AFI / DVP Fluid pocket index */}
+                {selectedPipelineStage === 'afi_dvp' && (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {/* Fluid Pocket Matrix Quad Layout */}
+                      <div className="grid grid-cols-2 gap-2 aspect-square rounded-xl bg-slate-950 border border-slate-900 p-2 select-none relative">
+                        <div className="border border-dashed border-slate-800 rounded-lg flex flex-col items-center justify-center p-2 text-center">
+                          <span className="text-[9px] font-bold text-slate-500 block">Q1 (Upper Left)</span>
+                          <span className="text-sm font-black font-mono text-sky-400">{fluidQ1} cm</span>
+                        </div>
+                        <div className="border border-dashed border-slate-800 rounded-lg flex flex-col items-center justify-center p-2 text-center">
+                          <span className="text-[9px] font-bold text-slate-500 block">Q2 (Upper Right)</span>
+                          <span className="text-sm font-black font-mono text-sky-400">{fluidQ2} cm</span>
+                        </div>
+                        <div className="border border-dashed border-slate-800 rounded-lg flex flex-col items-center justify-center p-2 text-center">
+                          <span className="text-[9px] font-bold text-slate-500 block">Q3 (Lower Left)</span>
+                          <span className="text-sm font-black font-mono text-sky-400">{fluidQ3} cm</span>
+                        </div>
+                        <div className="border border-dashed border-slate-800 rounded-lg flex flex-col items-center justify-center p-2 text-center">
+                          <span className="text-[9px] font-bold text-slate-500 block">Q4 (Lower Right)</span>
+                          <span className="text-sm font-black font-mono text-sky-400">{fluidQ4} cm</span>
+                        </div>
+
+                        {/* Centered AFI Indicator badge */}
+                        <div className="absolute inset-0 m-auto w-16 h-16 rounded-full bg-slate-900/90 border border-sky-500 flex flex-col items-center justify-center text-center shadow-md">
+                          <span className="text-[8px] font-mono text-slate-400">Total AFI</span>
+                          <span className="text-xs font-black font-mono text-sky-300">{(fluidQ1 + fluidQ2 + fluidQ3 + fluidQ4).toFixed(1)} cm</span>
+                        </div>
+                      </div>
+
+                      {/* Quadrant controls */}
+                      <div className="space-y-3 bg-slate-50 border border-slate-100 rounded-xl p-3 text-xs justify-center flex flex-col">
+                        <span className="font-bold text-slate-800 text-[10px] uppercase block border-b border-slate-200 pb-1">Fluid Pocket Matrix Control</span>
+                        
+                        {/* Q1 Slider */}
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-[10px] text-slate-600">
+                            <span>Q1 Depth</span>
+                            <span className="font-mono font-bold text-sky-700">{fluidQ1} cm</span>
+                          </div>
+                          <input type="range" min={0} max={10} step={0.1} value={fluidQ1} onChange={e => setFluidQ1(Number(e.target.value))} className="w-full accent-sky-500 cursor-pointer" />
+                        </div>
+
+                        {/* Q2 Slider */}
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-[10px] text-slate-600">
+                            <span>Q2 Depth</span>
+                            <span className="font-mono font-bold text-sky-700">{fluidQ2} cm</span>
+                          </div>
+                          <input type="range" min={0} max={10} step={0.1} value={fluidQ2} onChange={e => setFluidQ2(Number(e.target.value))} className="w-full accent-sky-500 cursor-pointer" />
+                        </div>
+
+                        {/* AFI Diagnosis Display */}
+                        <div className={`p-2.5 rounded-lg border text-[11px] mt-2 ${
+                          (fluidQ1 + fluidQ2 + fluidQ3 + fluidQ4) < 5.0
+                            ? 'bg-rose-50 border-rose-200 text-rose-950'
+                            : (fluidQ1 + fluidQ2 + fluidQ3 + fluidQ4) > 24.0
+                            ? 'bg-amber-50 border-amber-200 text-amber-950'
+                            : 'bg-emerald-50 border-emerald-200 text-emerald-950'
+                        }`}>
+                          <strong className="block">Clinical Classification:</strong>
+                          {(fluidQ1 + fluidQ2 + fluidQ3 + fluidQ4) < 5.0 && 'OLIGOHYDRAMNIOS (Severe deficiency - High cord compression risk)'}
+                          {(fluidQ1 + fluidQ2 + fluidQ3 + fluidQ4) >= 5.0 && (fluidQ1 + fluidQ2 + fluidQ3 + fluidQ4) <= 24.0 && 'NORMAL FLUID VOLUME (Healthy intrauterine fluid levels)'}
+                          {(fluidQ1 + fluidQ2 + fluidQ3 + fluidQ4) > 24.0 && 'POLYHYDRAMNIOS (Excessive fluid levels - Preterm labor risk)'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 7. Longitudinal Digital Twin Comparison */}
+                {selectedPipelineStage === 'digital_twin' && (
+                  <div className="space-y-4">
+                    <div className="p-3 bg-pink-50 border border-pink-100 rounded-xl text-xs space-y-1 text-pink-950">
+                      <div className="flex items-center space-x-1.5 font-bold text-pink-900">
+                        <HeartPulse className="w-4 h-4 text-pink-700 animate-pulse" />
+                        <span>Longitudinal Digital Twin Modeling</span>
+                      </div>
+                      <p className="text-[11px] leading-relaxed">
+                        Tracks inter-twin growth trajectories. Dynamic discordance indexing calculates asymmetric growth lags, which triggers prompt selective growth restriction (sFGR) alerts.
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {/* Twin Weight Slider Inputs */}
+                      <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs space-y-3 justify-center flex flex-col">
+                        <div className="border-b border-slate-100 pb-1.5 font-bold text-slate-800 text-[10px] uppercase">Twin Weight Modeling</div>
+                        <div className="flex justify-between items-center"><span className="text-slate-600 font-medium">Twin A EFW (Reference):</span> <span className="font-mono font-black text-slate-800">{computedEfw} g</span></div>
+                        
+                        <div className="space-y-1">
+                          <div className="flex justify-between font-medium text-[10px] text-slate-600">
+                            <span>Twin B EFW</span>
+                            <span className="font-mono font-bold text-pink-800">1350 g</span>
+                          </div>
+                          <div className="p-1.5 bg-white border border-slate-200 rounded text-[11px] font-mono font-bold text-center">
+                            1350 grams (Simulated)
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Discordance Gauge */}
+                      <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col justify-between text-center">
+                        <div>
+                          <span className="text-[10px] font-bold text-slate-500 uppercase block">Inter-Twin Discordance</span>
+                          <span className="text-3xl font-black font-mono text-pink-700 block mt-1.5">
+                            {(( (computedEfw - 1350) / computedEfw ) * 100).toFixed(1)}%
+                          </span>
+                        </div>
+
+                        <div className={`p-2 rounded-lg border text-[10px] text-left mt-2 ${
+                          (( (computedEfw - 1350) / computedEfw ) * 100) > 25
+                            ? 'bg-rose-50 border-rose-200 text-rose-950 font-bold'
+                            : 'bg-emerald-50 border-emerald-200 text-emerald-950'
+                        }`}>
+                          {(( (computedEfw - 1350) / computedEfw ) * 100) > 25
+                            ? 'CRITICAL DISCORDANCE (>25%). High risk of sFGR.'
+                            : 'CONCORDANT GROWTH (<25%). Symmetrical twin development.'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 8. XGBoost Forecasting */}
+                {selectedPipelineStage === 'xgboost' && (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {/* Risk Scores list */}
+                      <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs space-y-2.5 justify-center flex flex-col">
+                        <span className="font-bold text-slate-800 text-[10px] uppercase block border-b border-slate-100 pb-1">XGBoost Risk Projections</span>
+                        {[
+                          { name: 'Fetal Growth Restriction (FGR)', risk: '12.4%', state: 'Low' },
+                          { name: 'Maternal Preeclampsia Risk', risk: '8.1%', state: 'Low' },
+                          { name: 'Preterm Labor Probability', risk: '11.5%', state: 'Low' }
+                        ].map((item, i) => (
+                          <div key={i} className="flex justify-between items-center p-2 bg-white border border-slate-200 rounded-lg">
+                            <span className="font-semibold text-slate-700">{item.name}</span>
+                            <div className="text-right">
+                              <span className="font-mono font-black text-slate-800 block">{item.risk}</span>
+                              <span className="text-[9px] text-emerald-600 font-bold">{item.state}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Outlier Score isolation forest */}
+                      <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 text-center text-white flex flex-col justify-between">
+                        <div>
+                          <span className="text-[10px] font-mono tracking-wider text-slate-400 block uppercase">Isolation Forest Outlier Profile</span>
+                          <span className="text-2xl font-black font-mono text-emerald-400 block mt-2">Score: 0.318</span>
+                          <span className="text-xs text-slate-300 mt-1 block font-semibold text-emerald-400">Within Normal Bounds</span>
+                        </div>
+
+                        <div className="p-2 bg-slate-800 rounded-lg text-left text-[9px] font-mono text-slate-300 mt-3 leading-relaxed">
+                          We compute 48 isolation tree splittings; average leaf depth remains within normal cluster thresholds.
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 9. SHAP Explainability */}
+                {selectedPipelineStage === 'shap' && (
+                  <div className="space-y-4">
+                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs space-y-3">
+                      <div className="border-b border-slate-200 pb-1.5">
+                        <strong className="text-slate-800 block">Game-Theoretic Feature Attribution (SHAP values)</strong>
+                        <span className="text-[10px] text-slate-400">Demonstrates exact model contribution weights towards patient final trajectory outcomes</span>
+                      </div>
+
+                      {/* Horizontal SHAP Bar charts */}
+                      <div className="space-y-2.5 font-mono text-[10px]">
+                        {[
+                          { name: 'Abdominal Circ Velocity', value: -4.8, color: 'bg-blue-500' },
+                          { name: 'EFW Trajectory Angle', value: 3.5, color: 'bg-rose-500' },
+                          { name: 'AFI Longitudinal Delta', value: -2.1, color: 'bg-blue-500' },
+                          { name: 'Maternal SBP Velocity', value: 1.4, color: 'bg-rose-500' }
+                        ].map((feat, i) => (
+                          <div key={i} className="space-y-1">
+                            <div className="flex justify-between items-center text-slate-700">
+                              <span>{feat.name}</span>
+                              <span className={feat.value >= 0 ? 'text-rose-600 font-bold' : 'text-blue-600 font-bold'}>
+                                {feat.value >= 0 ? `+${feat.value}%` : `${feat.value}%`}
+                              </span>
+                            </div>
+                            <div className="w-full h-2 rounded-full bg-slate-200 relative overflow-hidden">
+                              <div className={`h-full ${feat.color} rounded-full`} style={{ width: `${Math.abs(feat.value) * 10}%` }} />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 10. Clinician Signature Approval */}
+                {selectedPipelineStage === 'clinician' && (
+                  <div className="space-y-4">
+                    {isApproved ? (
+                      <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-5 text-center space-y-3">
+                        <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center mx-auto">
+                          <CheckCircle2 className="w-6 h-6 text-emerald-600" />
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-bold text-emerald-950">Scan Report Validated & Signed</h4>
+                          <p className="text-xs text-emerald-800 leading-relaxed max-w-md mx-auto mt-1">
+                            Dr. Sarah Jenkins, MFM has digitally locked and signed off this trajectory profile on {new Date().toISOString().split('T')[0]}. Validation stamp transmitted to EHR.
+                          </p>
+                        </div>
+                        <div className="text-[10px] font-mono text-emerald-700 bg-emerald-100/50 p-2 border border-emerald-200 rounded-lg inline-block select-all">
+                          Tx-Hash: SHA256_0x3e1f89bc...2a00c1e
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-3.5 text-xs">
+                        <div className="space-y-1">
+                          <label htmlFor="clinician-notes-area" className="font-bold text-slate-700 text-[10px] uppercase">Clinician Actionable Findings & Remarks</label>
+                          <textarea
+                            id="clinician-notes-area"
+                            rows={3}
+                            value={clinicianComments}
+                            onChange={e => setClinicianComments(e.target.value)}
+                            className="w-full p-2.5 border border-slate-300 rounded-xl text-slate-800 bg-slate-50 focus:bg-white text-xs leading-relaxed"
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-xl">
+                          <div className="flex items-center space-x-2">
+                            <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center font-bold text-slate-700">SJ</div>
+                            <div>
+                              <span className="font-bold text-slate-800 block">Dr. Sarah Jenkins, MFM</span>
+                              <span className="text-[10px] text-slate-400">License ID: #MFM-38491A</span>
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => setIsApproved(true)}
+                            className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-lg text-xs flex items-center space-x-1.5 shadow-2xs cursor-pointer transition-colors"
+                          >
+                            <ClipboardCheck className="w-3.5 h-3.5" />
+                            <span>Sign & Approved Report</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+              </div>
+
+              {/* Action/Explanation footer */}
+              <div className="text-center text-[10px] text-slate-500 bg-slate-50 border border-slate-100/80 p-2 rounded-xl mt-4 shrink-0 font-medium">
+                {selectedPipelineStage === 'ultrasound' && 'Swin-ViT identifies frame boundaries and image metrics in 45 milliseconds.'}
+                {selectedPipelineStage === 'vit_swin' && 'Standard trans-ventricular plane must be fully approved prior to caliper activation.'}
+                {selectedPipelineStage === 'unet' && 'Attention U-Net suppress non-target pixels to ensure Dice metrics remain higher than 0.98.'}
+                {selectedPipelineStage === 'calipers' && 'Adjust measurements: calipers map sub-pixel structures with sub-millimeter precision.'}
+                {selectedPipelineStage === 'efw' && 'Dynamic Hadlock estimation incorporates z-score adjustments on gestation week averages.'}
+                {selectedPipelineStage === 'afi_dvp' && 'Pocket matrix tracks total AFI, warning clinicians of Oligohydramnios / Polyhydramnios.'}
+                {selectedPipelineStage === 'digital_twin' && 'Tracks Trajectory divergence. Growth discordance provides prospective Selective FGR warning.'}
+                {selectedPipelineStage === 'xgboost' && 'XGBoost compiles temporal velocities to predict risk indicators at 94% validation accuracy.'}
+                {selectedPipelineStage === 'shap' && 'We utilize game theory to output absolute feature attributions, explaining all model decisions.'}
+                {selectedPipelineStage === 'clinician' && 'Requires credentials signature to fully push trajectory parameters to the medical grid.'}
+              </div>
+
+            </div>
+
+            {/* Right Box (Theoretical & ML specs): 5 Cols */}
+            <div className="lg:col-span-5 bg-white border border-slate-200 rounded-2xl p-6 shadow-2xs space-y-4 flex flex-col justify-between">
+              
+              <div className="space-y-4">
+                <div className="border-b border-slate-100 pb-2">
+                  <span className="font-bold text-[10px] uppercase tracking-wider text-slate-400 block font-mono">Theoretical Grounding</span>
+                  <h4 className="text-sm font-bold text-slate-900 mt-0.5">
+                    {selectedPipelineStage === 'ultrasound' && 'Ultrasound Physics & Frame Ingestion'}
+                    {selectedPipelineStage === 'vit_swin' && 'Plane Detection via Transformer Patches'}
+                    {selectedPipelineStage === 'unet' && 'U-Net Spatial Convolution Hierarchy'}
+                    {selectedPipelineStage === 'calipers' && 'Caliper Coordinates & Scaling Math'}
+                    {selectedPipelineStage === 'efw' && 'Hadlock Multi-Variable regression'}
+                    {selectedPipelineStage === 'afi_dvp' && 'Fluid Pocket Quadrant Indexing'}
+                    {selectedPipelineStage === 'digital_twin' && 'Longitudinal Trajectory Discordance'}
+                    {selectedPipelineStage === 'xgboost' && 'Longitudinal Velocity Feature Splittings'}
+                    {selectedPipelineStage === 'shap' && 'Cooperative Game Theory Attributions'}
+                    {selectedPipelineStage === 'clinician' && 'Electronic Health Record Integration'}
+                  </h4>
+                </div>
+
+                <div className="text-xs text-slate-600 leading-relaxed space-y-2.5">
+                  {selectedPipelineStage === 'ultrasound' && (
+                    <>
+                      <p>High-frequency sound waves reflected from cranial tissues create raw B-mode analog scan pixels, which are converted into spatial matrices via DICOM.</p>
+                      <p>Speckle filters reduce thermal graininess, preparing images for convolutional and transformer grids.</p>
+                    </>
+                  )}
+                  {selectedPipelineStage === 'vit_swin' && (
+                    <>
+                      <p>By dividing the scan frame into localized patches, Swin-ViT models relative spatial pixel values to locate essential anatomical structures.</p>
+                      <p>Ensures that the fetal head, cerebellum, and thalamus coordinates are aligned exactly inside standard crosshairs.</p>
+                    </>
+                  )}
+                  {selectedPipelineStage === 'unet' && (
+                    <>
+                      <p>Attention U-Net passes feature channels through encoding downsamplings and decoding skip-connections, masking fetal structures with extreme precision.</p>
+                      <p>Suppresses background tissues to highlight skull contours, leading to highly consistent Dice metrics exceeding 0.98.</p>
+                    </>
+                  )}
+                  {selectedPipelineStage === 'calipers' && (
+                    <>
+                      <p>Coordinates mapped from segmented contours identify the exact dimensions (BPD, HC, AC, FL) with sub-pixel precision.</p>
+                      <p>Translates pixel distance directly into clinical millimeters based on ultrasound scanner pixel-scaling ratios.</p>
+                    </>
+                  )}
+                  {selectedPipelineStage === 'efw' && (
+                    <>
+                      <p>Hadlock formulas provide standard estimation equations, calculating the estimated fetal weight based on multi-parameter dimensions.</p>
+                      <p>Percentiles are calculated dynamically using standard Gaussian normal curves matched to gestational age averages.</p>
+                    </>
+                  )}
+                  {selectedPipelineStage === 'afi_dvp' && (
+                    <>
+                      <p>Amniotic fluid indices represent placental blood-flow and renal performance. Low levels warn clinicians of oligohydramnios risks.</p>
+                      <p>Calculating pockets in four quadrants provides a robust matrix measuring total intrauterine fluid reserves.</p>
+                    </>
+                  )}
+                  {selectedPipelineStage === 'digital_twin' && (
+                    <>
+                      <p>By modeling growth trajectories longitudinally over multiple visits, PregnancyTwin identifies subtle twin developmental discordance.</p>
+                      <p>Calculating growth gaps live helps medical experts intervene quickly, predicting sFGR risks before birth.</p>
+                    </>
+                  )}
+                  {selectedPipelineStage === 'xgboost' && (
+                    <>
+                      <p>XGBoost fits decision trees on longitudinal features (velocities, changes, and drug exposure factors), avoiding standard black-box complexity.</p>
+                      <p>Combines multi-modal variables to forecast clinical risk with over 94% validation accuracy.</p>
+                    </>
+                  )}
+                  {selectedPipelineStage === 'shap' && (
+                    <>
+                      <p>SHAP values calculate exact mathematical attribution weights, measuring how each clinical feature directly affects patient risk outputs.</p>
+                      <p>Helps clinical experts audit and trust model decisions, eliminating clinical &quot;black box&quot; worries.</p>
+                    </>
+                  )}
+                  {selectedPipelineStage === 'clinician' && (
+                    <>
+                      <p>No AI system can replace human medical expertise. Our pipeline requires credentialed signature approval prior to pushing report logs to patient EHRs.</p>
+                      <p>Maintains a secure, audited workflow history, meeting top-tier clinical standard rules.</p>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Neural Node Connections Visualizer */}
+              <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 text-xs space-y-2">
+                <div className="flex justify-between font-mono text-[9px] text-slate-400 border-b border-slate-200 pb-1">
+                  <span>ACTIVE SIGNAL FLOW</span>
+                  <span>CUDA GPU: ON</span>
+                </div>
+                <div className="space-y-1 font-mono text-[10px] text-slate-600">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
+                    <span>Signal: raw_pixels &rarr; classified_plane &rarr; segmented_mask</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-teal-500" />
+                    <span>Metrics: HC={caliperHc}mm • BPD={caliperBpd}mm • EFW={computedEfw}g</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                    <span>Forecast: percentile={computedPercentile}% • status={isApproved ? 'VALIDATED' : 'AWAITING_REVIEW'}</span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          {/* Hybrid Strategy Cards Panel */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-2xs space-y-4">
             <div>
               <h3 className="text-base font-bold text-slate-900">Hybrid ML Architecture: The Right Model for Every Task</h3>
               <p className="text-xs text-slate-600 mt-1">
@@ -1370,12 +2452,432 @@ if __name__ == '__main__':
                   Target: OCR &rarr; Structured JSON &rarr; Natural language briefings
                 </div>
               </div>
+
+              <div className="p-4 bg-teal-50/70 border border-teal-200 rounded-xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-teal-900 flex items-center space-x-1.5">
+                    <Cpu className="w-4 h-4 text-teal-700" />
+                    <span>Phase 7: Vision Transformer (ViT)</span>
+                  </span>
+                  <span className="px-2 py-0.5 text-[10px] font-bold bg-teal-200 text-teal-900 rounded">INTEGRATED</span>
+                </div>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Deep self-attention classification architecture that identifies anatomically valid standard views to ensure calipers are taken in correct planes.
+                </p>
+                <div className="text-[11px] font-semibold text-teal-800 pt-1">
+                  Target: Real-time standard plane classification acc &gt; 97%
+                </div>
+              </div>
+
+              <div className="p-4 bg-teal-50/70 border border-teal-200 rounded-xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-teal-900 flex items-center space-x-1.5">
+                    <Layers className="w-4 h-4 text-teal-700" />
+                    <span>Phase 8: Attention U-Net</span>
+                  </span>
+                  <span className="px-2 py-0.5 text-[10px] font-bold bg-teal-200 text-teal-900 rounded">INTEGRATED</span>
+                </div>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Deep pixel-level semantic segmentation model mapping fetal skull, abdominal, and femur contours for direct auto-caliper measurements.
+                </p>
+                <div className="text-[11px] font-semibold text-teal-800 pt-1">
+                  Target: Fetal skull contour segmentation Dice Coeff &gt; 0.98
+                </div>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* SECTION 6: PYTHON SOURCE CODE VIEWER */}
+      {/* SECTION 6: IMAGING AI BUILDER (VIT & UNET) */}
+      {activeSection === 'imaging' && (
+        <div className="space-y-5">
+          {/* Top Banner */}
+          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-2xs space-y-2">
+            <div className="flex items-center space-x-2">
+              <div className="w-8 h-8 rounded-lg bg-teal-500/10 border border-teal-500/20 flex items-center justify-center">
+                <Cpu className="w-4 h-4 text-teal-600" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900">Imaging Deep Learning Architecture Builder</h3>
+                <p className="text-xs text-slate-500">
+                  Configure, compile, and simulate training of custom PyTorch Vision Transformer (ViT) and Attention U-Net models for sonography scans.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Configuration and Training Split */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+            {/* Left Column: Hyperparameter Configurator */}
+            <div className="lg:col-span-5 bg-white border border-slate-200 rounded-xl p-5 shadow-2xs space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <span className="font-bold text-xs uppercase tracking-wider text-slate-700">Model Selection & Hyperparameters</span>
+                <span className="text-[10px] text-slate-400 font-mono">CUDA PyTorch API</span>
+              </div>
+
+              {/* Model Switch Segment Bar */}
+              <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-100 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedImagingModel('vit');
+                    setIsImagingTraining(false);
+                    setImagingEpoch(0);
+                    setImagingLogs([]);
+                  }}
+                  className={`py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                    selectedImagingModel === 'vit'
+                      ? 'bg-white text-teal-900 shadow-3xs'
+                      : 'text-slate-500 hover:text-slate-900'
+                  }`}
+                >
+                  Vision Transformer (ViT)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedImagingModel('unet');
+                    setIsImagingTraining(false);
+                    setImagingEpoch(0);
+                    setImagingLogs([]);
+                  }}
+                  className={`py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                    selectedImagingModel === 'unet'
+                      ? 'bg-white text-teal-900 shadow-3xs'
+                      : 'text-slate-500 hover:text-slate-900'
+                  }`}
+                >
+                  Attention U-Net
+                </button>
+              </div>
+
+              {/* Dynamic Parameter Options */}
+              {selectedImagingModel === 'vit' ? (
+                <div className="space-y-4 pt-1">
+                  <div className="p-3 bg-teal-50/50 border border-teal-100/60 rounded-lg text-xs text-teal-950">
+                    <strong>ViT Classification Objectives:</strong> Segmenting and identifying correct anatomical planes (Sagittal, Transverse, Coronal) to guarantee clinician measurement validity.
+                  </div>
+
+                  {/* Patch Size */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between text-xs font-medium text-slate-700">
+                      <label htmlFor="param-vit-patch">Patch Size (Pixels)</label>
+                      <span className="font-mono text-teal-800 font-bold">{vitPatchSize}x{vitPatchSize}</span>
+                    </div>
+                    <input
+                      id="param-vit-patch"
+                      type="range"
+                      min={8}
+                      max={32}
+                      step={8}
+                      value={vitPatchSize}
+                      onChange={e => setVitPatchSize(Number(e.target.value))}
+                      className="w-full accent-teal-600 cursor-pointer"
+                    />
+                    <div className="flex justify-between text-[10px] text-slate-400 font-mono">
+                      <span>8px (Dense)</span>
+                      <span>16px (Normal)</span>
+                      <span>32px (Sparse)</span>
+                    </div>
+                  </div>
+
+                  {/* Embedding Dimension */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between text-xs font-medium text-slate-700">
+                      <label htmlFor="param-vit-embed">Embedding Dimension (d_model)</label>
+                      <span className="font-mono text-teal-800 font-bold">{vitEmbedDim} channels</span>
+                    </div>
+                    <input
+                      id="param-vit-embed"
+                      type="range"
+                      min={128}
+                      max={768}
+                      step={128}
+                      value={vitEmbedDim}
+                      onChange={e => setVitEmbedDim(Number(e.target.value))}
+                      className="w-full accent-teal-600 cursor-pointer"
+                    />
+                    <div className="flex justify-between text-[10px] text-slate-400 font-mono">
+                      <span>128 (Tiny)</span>
+                      <span>384 (Medium)</span>
+                      <span>768 (Base)</span>
+                    </div>
+                  </div>
+
+                  {/* Attention Heads */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between text-xs font-medium text-slate-700">
+                      <label htmlFor="param-vit-heads">Multi-Head Attention Heads</label>
+                      <span className="font-mono text-teal-800 font-bold">{vitHeads} heads</span>
+                    </div>
+                    <input
+                      id="param-vit-heads"
+                      type="range"
+                      min={4}
+                      max={12}
+                      step={2}
+                      value={vitHeads}
+                      onChange={e => setVitHeads(Number(e.target.value))}
+                      className="w-full accent-teal-600 cursor-pointer"
+                    />
+                    <div className="flex justify-between text-[10px] text-slate-400 font-mono">
+                      <span>4 heads</span>
+                      <span>8 heads</span>
+                      <span>12 heads</span>
+                    </div>
+                  </div>
+
+                  {/* Transformer Blocks */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between text-xs font-medium text-slate-700">
+                      <label htmlFor="param-vit-depth">Depth (Transformer Blocks)</label>
+                      <span className="font-mono text-teal-800 font-bold">{vitDepth} layers</span>
+                    </div>
+                    <input
+                      id="param-vit-depth"
+                      type="range"
+                      min={4}
+                      max={12}
+                      step={2}
+                      value={vitDepth}
+                      onChange={e => setVitDepth(Number(e.target.value))}
+                      className="w-full accent-teal-600 cursor-pointer"
+                    />
+                    <div className="flex justify-between text-[10px] text-slate-400 font-mono">
+                      <span>4 (Shallow)</span>
+                      <span>8 (Moderate)</span>
+                      <span>12 (Deep)</span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4 pt-1">
+                  <div className="p-3 bg-teal-50/50 border border-teal-100/60 rounded-lg text-xs text-teal-950">
+                    <strong>U-Net Segmentation Objectives:</strong> Pixel-level anatomical labeling to automatically map fetal calipers (HC, AC, FL) with sub-millimeter precision.
+                  </div>
+
+                  {/* Base Channels */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between text-xs font-medium text-slate-700">
+                      <label htmlFor="param-unet-channels">Base Convolutional Channels</label>
+                      <span className="font-mono text-teal-800 font-bold">{unetBaseChannels} channels</span>
+                    </div>
+                    <input
+                      id="param-unet-channels"
+                      type="range"
+                      min={16}
+                      max={64}
+                      step={16}
+                      value={unetBaseChannels}
+                      onChange={e => setUnetBaseChannels(Number(e.target.value))}
+                      className="w-full accent-teal-600 cursor-pointer"
+                    />
+                    <div className="flex justify-between text-[10px] text-slate-400 font-mono">
+                      <span>16 ch (Ultra-light)</span>
+                      <span>32 ch (Light)</span>
+                      <span>64 ch (Standard)</span>
+                    </div>
+                  </div>
+
+                  {/* Attention Gate Toggle */}
+                  <div className="flex items-center justify-between p-2.5 bg-slate-50 border border-slate-100 rounded-lg">
+                    <div>
+                      <span className="text-xs font-bold text-slate-800 block">Attention Gated Skip Connections</span>
+                      <span className="text-[10px] text-slate-500">Suppresses non-target background noise</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setUnetAttention(prev => !prev)}
+                      className={`w-11 h-6 rounded-full p-1 transition-colors cursor-pointer ${
+                        unetAttention ? 'bg-teal-600' : 'bg-slate-300'
+                      }`}
+                    >
+                      <div className={`bg-white w-4 h-4 rounded-full shadow-xs transition-transform transform ${
+                        unetAttention ? 'translate-x-5' : 'translate-x-0'
+                      }`} />
+                    </button>
+                  </div>
+
+                  {/* Decoder Type */}
+                  <div className="space-y-1">
+                    <span className="text-xs font-bold text-slate-700 block">Upsampling Decoder Mode</span>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setUnetUpsample('conv_transpose')}
+                        className={`p-2 border rounded-lg text-xs font-bold transition-all text-center cursor-pointer ${
+                          unetUpsample === 'conv_transpose'
+                            ? 'border-teal-600 bg-teal-50 text-teal-950'
+                            : 'border-slate-200 text-slate-500 hover:bg-slate-50'
+                        }`}
+                      >
+                        ConvTranspose2d
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setUnetUpsample('bilinear')}
+                        className={`p-2 border rounded-lg text-xs font-bold transition-all text-center cursor-pointer ${
+                          unetUpsample === 'bilinear'
+                            ? 'border-teal-600 bg-teal-50 text-teal-950'
+                            : 'border-slate-200 text-slate-500 hover:bg-slate-50'
+                        }`}
+                      >
+                        Bilinear + 1x1 Conv
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Right Column: Console & Visual Sandbox */}
+            <div className="lg:col-span-7 bg-white border border-slate-200 rounded-xl p-5 shadow-2xs flex flex-col justify-between min-h-[460px] space-y-4">
+              {/* Training Controls */}
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3 shrink-0">
+                <div className="flex items-center space-x-2">
+                  <div className={`w-2.5 h-2.5 rounded-full ${isImagingTraining ? 'bg-amber-500 animate-ping' : 'bg-slate-400'}`} />
+                  <span className="font-bold text-xs text-slate-800">
+                    {isImagingTraining ? `Optimizer Executing (Epoch ${imagingEpoch}/10)` : 'Training Console Status: Ready'}
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleStartImagingTraining}
+                  disabled={isImagingTraining}
+                  className={`px-4 py-1.5 rounded-lg text-xs font-bold flex items-center space-x-1.5 transition-all cursor-pointer ${
+                    isImagingTraining
+                      ? 'bg-slate-100 border border-slate-200 text-slate-400 cursor-not-allowed'
+                      : 'bg-teal-700 hover:bg-teal-800 text-white shadow-3xs'
+                  }`}
+                >
+                  <Play className="w-3.5 h-3.5" />
+                  <span>{isImagingTraining ? 'Training...' : 'Compile & Train Model'}</span>
+                </button>
+              </div>
+
+              {/* Split Terminal & Visualization */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 grow">
+                {/* Simulated CUDA Logs */}
+                <div className="bg-slate-950 border border-slate-900 rounded-xl p-3 flex flex-col justify-between min-h-[220px]">
+                  <div className="flex items-center justify-between border-b border-slate-900 pb-1.5 text-[10px] font-mono text-slate-500 select-none">
+                    <span>STDOUT / CUDA TERMINAL</span>
+                    <span>100% CUDA</span>
+                  </div>
+                  <div className="grow overflow-y-auto font-mono text-[10px] text-emerald-400 leading-normal p-1 space-y-1 scrollbar-thin">
+                    {imagingLogs.length === 0 ? (
+                      <span className="text-slate-500 leading-relaxed block italic">
+                        PyTorch CUDA Training console offline. Click "Compile & Train Model" above to commence gradient step optimization.
+                      </span>
+                    ) : (
+                      imagingLogs.map((log, idx) => (
+                        <div key={idx} className={
+                          log.startsWith('[SUCCESS]') ? 'text-teal-400 font-bold' :
+                          log.startsWith('[INFO]') ? 'text-indigo-400' : 'text-emerald-400'
+                        }>
+                          {log}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Simulated Visual Overlay Sandbox */}
+                <div className="border border-slate-200 bg-slate-50 rounded-xl p-3 flex flex-col justify-between min-h-[220px]">
+                  <div className="flex items-center justify-between border-b border-slate-200 pb-1.5 select-none">
+                    <span className="text-[10px] font-bold text-slate-600">INFERENCE ENGINE PREVIEW</span>
+                    <span className="text-[10px] px-1.5 py-0.5 bg-emerald-50 text-emerald-700 font-mono font-bold rounded">
+                      Dice: {selectedImagingModel === 'unet' ? (imagingEpoch >= 10 ? '0.982' : imagingEpoch > 0 ? '0.941' : '0.000') : (imagingEpoch >= 10 ? '97.5%' : imagingEpoch > 0 ? '88.2%' : '0.000%')}
+                    </span>
+                  </div>
+
+                  {/* Render Visual Mockup */}
+                  <div className="grow flex items-center justify-center p-2">
+                    <div className="relative w-36 h-36 rounded-lg border border-slate-300 bg-slate-950 overflow-hidden shadow-xs flex items-center justify-center select-none">
+                      {/* Simulated ultrasound scan background texture */}
+                      <div className="absolute inset-0 bg-gradient-to-tr from-slate-900 via-slate-950 to-slate-900 opacity-90" />
+                      <div className="absolute w-24 h-24 rounded-full border border-dashed border-slate-800 opacity-40 animate-pulse" />
+                      
+                      {/* Visual representations based on model */}
+                      {selectedImagingModel === 'vit' ? (
+                        <>
+                          <div className="absolute w-12 h-12 bg-orange-500/20 rounded-full blur-xs border border-orange-500/40 transform -translate-x-2 -translate-y-1" />
+                          <div className="absolute w-8 h-8 bg-amber-500/30 rounded-full blur-md transform translate-x-3 translate-y-3" />
+                          <span className="absolute bottom-2 left-2 text-[8px] font-mono font-bold text-orange-400 bg-slate-900/80 px-1 py-0.5 rounded border border-orange-500/20">
+                            Attention Map Overlay
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <div className="absolute w-20 h-16 rounded-full border-2 border-teal-400/80 bg-teal-400/5 rotate-12 flex items-center justify-center shadow-[0_0_8px_rgba(45,212,191,0.3)]">
+                            <div className="w-1.5 h-1.5 bg-rose-500 rounded-full absolute top-0" />
+                            <div className="w-1.5 h-1.5 bg-rose-500 rounded-full absolute bottom-0" />
+                            <span className="text-[7px] font-mono font-bold text-teal-200">Skull Boundary</span>
+                          </div>
+                          <span className="absolute bottom-2 left-2 text-[8px] font-mono font-bold text-teal-400 bg-slate-900/80 px-1 py-0.5 rounded border border-teal-500/20">
+                            Caliper Segmentation
+                          </span>
+                        </>
+                      )}
+                      
+                      {/* Centered state indicators */}
+                      {imagingEpoch === 0 && (
+                        <div className="absolute inset-0 bg-slate-950/80 flex items-center justify-center text-center p-3 text-[10px] text-slate-400">
+                          Inference model awaiting training...
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Model Objective Footer */}
+                  <div className="text-[10px] text-slate-500 leading-relaxed text-center">
+                    {selectedImagingModel === 'vit'
+                      ? 'Vision Transformer attention heads successfully locate fetal thalamus and cerebellum coordinates.'
+                      : 'Attention U-Net maps exact outer contours to extract BPD and HC diameters with sub-pixel precision.'}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Model PyTorch Script Export Panel */}
+          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-2xs space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3 shrink-0">
+              <div>
+                <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Dynamic Production PyTorch Code Exporter</h4>
+                <p className="text-[11px] text-slate-500">
+                  Fully customized script reflecting your selected hyperparameters, optimized for rapid training on custom GPU clusters.
+                </p>
+              </div>
+              <div className="flex items-center space-x-2">
+                <button
+                  type="button"
+                  onClick={handleCopyPyTorchCode}
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors flex items-center space-x-1.5 cursor-pointer"
+                >
+                  {hasCopiedPyTorchCode ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-slate-500" />}
+                  <span>{hasCopiedPyTorchCode ? 'Copied!' : 'Copy PyTorch Code'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDownloadPyTorchCode}
+                  className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-teal-700 hover:bg-teal-800 text-white transition-colors flex items-center space-x-1.5 cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5 text-teal-200" />
+                  <span>Download PyTorch Script</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-slate-950 border border-slate-900 rounded-xl p-4 text-xs font-mono text-slate-200 overflow-x-auto max-h-[400px] scrollbar-thin select-all">
+              <pre>{pyTorchCode}</pre>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SECTION 7: PYTHON SOURCE CODE VIEWER */}
       {activeSection === 'code' && (
         <div className="space-y-4">
           <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-2xs flex items-center justify-between">
