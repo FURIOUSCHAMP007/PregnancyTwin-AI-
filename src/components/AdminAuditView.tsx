@@ -40,7 +40,7 @@ export const AdminAuditView: React.FC = () => {
   const fetchAdminData = () => {
     fetch('/api/audit-logs')
       .then((res) => res.json())
-      .then((data) => setLogs(data.logs || []))
+      .then((data) => setLogs(Array.isArray(data) ? data : (data.logs || [])))
       .catch((err) => console.error(err));
 
     fetch('/api/doctors')
@@ -476,7 +476,7 @@ export const AdminAuditView: React.FC = () => {
               {logs.map((log) => (
                 <tr key={log.id} className="hover:bg-slate-50 transition">
                   <td className="py-3 px-4 font-mono text-[11px] text-slate-500 whitespace-nowrap">
-                    {new Date(log.timestamp).toLocaleString()}
+                    {isNaN(new Date(log.timestamp).getTime()) ? log.timestamp : new Date(log.timestamp).toLocaleString()}
                   </td>
                   <td className="py-3 px-4">
                     <span className="font-bold px-2 py-0.5 rounded text-[10px] bg-slate-100 text-slate-800 border border-slate-200">

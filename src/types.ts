@@ -64,6 +64,7 @@ export interface BiometricMeasurements {
   ac_mm?: number; // Abdominal Circumference
   fl_mm?: number; // Femur Length
   bpd_mm?: number; // Biparietal Diameter
+  ofd_mm?: number; // Occipitofrontal Diameter
 }
 
 export interface VisitMeasurement {
@@ -321,3 +322,20 @@ export interface CopilotMessage {
 }
 
 export type AppTab = 'home' | 'clinical' | 'live-input' | 'analytics' | 'simulation' | 'records' | 'settings' | 'research' | 'admin' | 'medications';
+
+export interface UltrasoundCalibration {
+  calibration_method: string;
+  pixel_spacing: number;
+  pixels_per_mm?: number;
+  known_distance_mm?: number;
+  pixel_distance?: number;
+  scale_source?: string;
+  available: boolean;
+  last_calibrated_at?: string;
+  reference_points?: {
+    point1: [number, number];
+    point2: [number, number];
+    delta_x_px?: number;
+    delta_y_px?: number;
+  };
+}

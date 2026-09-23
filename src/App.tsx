@@ -836,6 +836,7 @@ export default function App() {
         {/* 5. Settings & Admin/Info Suite (Research ROC, Audit Log, Guidelines) */}
         {(activeTab === 'settings' || activeTab === 'research' || activeTab === 'admin') && (
           <SettingsView
+            key={activeTab}
             currentUser={currentUser}
             onSwitchRole={handleSwitchRole}
             onSwitchUser={handleSwitchUser}
