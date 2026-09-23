@@ -1,0 +1,11 @@
+{
+  "model_type": "Swin-ViT-v2.1",
+  "segmentation_backbone": "nnU-Net-v2.3",
+  "framework": "PyTorch / ONNX Runtime C++ Engine",
+  "view_classifier_status": "ACTIVE_DEPLOYED",
+  "caliper_tracker_status": "ACTIVE_DEPLOYED",
+  "num_classes": 8,
+  "input_channels": 1,
+  "input_resolution": [512, 512],
+  "weights_version": "v2.1.0-live-production"
+}

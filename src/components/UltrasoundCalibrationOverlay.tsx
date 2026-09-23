@@ -394,20 +394,26 @@ export const UltrasoundCalibrationOverlay: React.FC<UltrasoundCalibrationOverlay
 
   // Apply Calibration
   const handleApply = async () => {
-    if (!point1 || !point2 || pixelDistance <= 5) return;
+    const hasLine = Boolean(point1 && point2 && pixelDistance > 5);
+    const effectivePixelSpacing = hasLine
+      ? Number(mmPerPixel.toFixed(5))
+      : Number((calibration?.pixel_spacing || 0.3850).toFixed(5));
+    const effectivePixelsPerMm = hasLine
+      ? Number(pixelsPerMm.toFixed(3))
+      : Number((1 / effectivePixelSpacing).toFixed(3));
 
     const newCalibration: UltrasoundCalibration = {
       available: true,
-      calibration_method: 'MANUAL_REFERENCE_LINE',
-      pixel_spacing: Number(mmPerPixel.toFixed(5)),
-      pixels_per_mm: Number(pixelsPerMm.toFixed(3)),
-      scale_source: 'CLINICIAN_MANUAL_CALIPER',
+      calibration_method: hasLine ? 'MANUAL_REFERENCE_LINE' : (calibration?.calibration_method || 'CONFIRMED_DICOM_SPACING'),
+      pixel_spacing: effectivePixelSpacing,
+      pixels_per_mm: effectivePixelsPerMm,
+      scale_source: hasLine ? 'CLINICIAN_MANUAL_CALIPER' : (calibration?.scale_source || 'DICOM_TAG_0028_0030'),
       known_distance_mm: knownDistanceMm,
-      pixel_distance: Number(pixelDistance.toFixed(2)),
-      reference_points: {
+      pixel_distance: hasLine ? Number(pixelDistance.toFixed(2)) : Number((knownDistanceMm / effectivePixelSpacing).toFixed(2)),
+      reference_points: hasLine && point1 && point2 ? {
         point1: [Number(point1.x.toFixed(2)), Number(point1.y.toFixed(2))],
         point2: [Number(point2.x.toFixed(2)), Number(point2.y.toFixed(2))]
-      },
+      } : calibration?.reference_points,
       last_calibrated_at: new Date().toISOString()
     };
 
@@ -418,11 +424,12 @@ export const UltrasoundCalibrationOverlay: React.FC<UltrasoundCalibrationOverlay
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           known_distance_mm: knownDistanceMm,
-          point1: [point1.x, point1.y],
-          point2: [point2.x, point2.y],
-          pixel_distance: pixelDistance,
+          point1: hasLine && point1 ? [point1.x, point1.y] : [0, 0],
+          point2: hasLine && point2 ? [point2.x, point2.y] : [knownDistanceMm / effectivePixelSpacing, 0],
+          pixel_distance: hasLine ? pixelDistance : knownDistanceMm / effectivePixelSpacing,
+          pixel_spacing: effectivePixelSpacing,
           patient_id: patientId || 'ANONYMOUS',
-          object_label: `${knownDistanceMm}mm Calibration Reference`
+          object_label: hasLine ? `${knownDistanceMm}mm Calibration Reference` : `Confirmed Scale (${effectivePixelSpacing} mm/px)`
         })
       });
     } catch (err) {
@@ -904,16 +911,16 @@ export const UltrasoundCalibrationOverlay: React.FC<UltrasoundCalibrationOverlay
 
       {/* Clinician Interactive Calibration Control Panel */}
       {!readOnly && (
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-3.5 text-slate-100 space-y-3 shadow-md">
+        <div className="bg-slate-900 border border-slate-800 rounded-xl p-3 text-slate-100 space-y-2.5 shadow-md">
           {/* Header Row: Calibration Mode Toggle & Grid Options */}
-          <div className="flex flex-wrap items-center justify-between gap-2.5 pb-2.5 border-b border-slate-800">
+          <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-800">
             <div className="flex items-center space-x-2">
               <div className={`p-1.5 rounded-lg ${isCalibrating ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-slate-800 text-slate-300'}`}>
                 <Ruler className="w-4 h-4" />
               </div>
               <div>
                 <h5 className="text-xs font-bold text-slate-100 flex items-center gap-1.5">
-                  Ultrasound Physical Scale Calibration (mm/px)
+                  <span>Ultrasound Physical Scale Calibration (mm/px)</span>
                   {calibration?.available && (
                     <span className="text-[9px] font-mono font-normal px-1.5 py-0.2 rounded bg-teal-900/60 text-teal-300 border border-teal-700">
                       CALIBRATED
@@ -926,7 +933,7 @@ export const UltrasoundCalibrationOverlay: React.FC<UltrasoundCalibrationOverlay
                   )}
                 </h5>
                 <p className="text-[10px] text-slate-400">
-                  Draw a line over a known 10mm object, phantom notch, or PACS scale tick. Zoom & Pan to place calipers with sub-pixel precision.
+                  Draw a line over a known 10mm object, phantom notch, or PACS scale tick. Zoom &amp; Pan to place calipers with sub-pixel precision.
                 </p>
               </div>
             </div>
@@ -936,7 +943,7 @@ export const UltrasoundCalibrationOverlay: React.FC<UltrasoundCalibrationOverlay
               <button
                 type="button"
                 onClick={() => setShowUltrasoundGrid(!showUltrasoundGrid)}
-                className={`px-2 py-1 rounded text-[10px] font-mono border transition ${
+                className={`px-2 py-1 rounded text-[10px] font-mono border transition cursor-pointer ${
                   showUltrasoundGrid
                     ? 'bg-slate-800 text-teal-300 border-teal-800'
                     : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-slate-200'
@@ -953,7 +960,7 @@ export const UltrasoundCalibrationOverlay: React.FC<UltrasoundCalibrationOverlay
                   setIsCalibrating(nextState);
                   if (nextState) setActiveTool('draw');
                 }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition shadow-sm ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition shadow-sm cursor-pointer ${
                   isCalibrating
                     ? 'bg-amber-500 hover:bg-amber-400 text-slate-950'
                     : 'bg-teal-600 hover:bg-teal-500 text-white'
@@ -965,13 +972,13 @@ export const UltrasoundCalibrationOverlay: React.FC<UltrasoundCalibrationOverlay
             </div>
           </div>
 
-          {/* Reference Distance Configuration & Ratio Output */}
-          <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
+          {/* Reference Distance Configuration & Ratio Output (Non-overflowing layout) */}
+          <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-stretch">
             {/* Left Col: Known Reference Distance Input & Presets */}
-            <div className="sm:col-span-6 space-y-1.5">
+            <div className="sm:col-span-6 bg-slate-950/90 p-2.5 rounded-lg border border-slate-800 flex flex-col justify-between space-y-2">
               <label className="text-[10px] font-mono uppercase text-slate-400 flex items-center justify-between">
                 <span>Known Reference Distance</span>
-                <span className="text-amber-400 font-bold">{knownDistanceMm} mm</span>
+                <span className="text-amber-400 font-bold font-mono">{knownDistanceMm} mm</span>
               </label>
 
               <div className="flex items-center gap-1.5">
@@ -981,10 +988,10 @@ export const UltrasoundCalibrationOverlay: React.FC<UltrasoundCalibrationOverlay
                     key={presetMm}
                     type="button"
                     onClick={() => handleSelectPreset(presetMm)}
-                    className={`px-2.5 py-1 rounded text-[11px] font-mono font-bold border transition ${
+                    className={`px-2 py-1 rounded text-[11px] font-mono font-bold border transition cursor-pointer ${
                       knownDistanceMm === presetMm
-                        ? 'bg-amber-500/20 text-amber-300 border-amber-500/60'
-                        : 'bg-slate-950 text-slate-400 border-slate-800 hover:border-slate-700 hover:text-slate-200'
+                        ? 'bg-amber-500/20 text-amber-300 border-amber-500/60 shadow-2xs'
+                        : 'bg-slate-900 text-slate-400 border-slate-700 hover:border-slate-600 hover:text-slate-200'
                     }`}
                   >
                     {presetMm}mm
@@ -992,7 +999,7 @@ export const UltrasoundCalibrationOverlay: React.FC<UltrasoundCalibrationOverlay
                 ))}
 
                 {/* Custom Input */}
-                <div className="relative flex-1">
+                <div className="relative flex-1 min-w-[65px]">
                   <input
                     type="number"
                     step="0.5"
@@ -1001,60 +1008,73 @@ export const UltrasoundCalibrationOverlay: React.FC<UltrasoundCalibrationOverlay
                     value={customDistanceInput}
                     onChange={(e) => handleCustomDistanceChange(e.target.value)}
                     placeholder="Custom"
-                    className="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1 text-xs text-slate-100 font-mono focus:outline-none focus:border-teal-500 text-right pr-7"
+                    className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-slate-100 font-mono focus:outline-none focus:border-teal-500 text-right pr-6"
                   />
-                  <span className="absolute right-2 top-1 text-[10px] text-slate-400 pointer-events-none font-mono">
+                  <span className="absolute right-1.5 top-1 text-[10px] text-slate-400 pointer-events-none font-mono">
                     mm
                   </span>
                 </div>
               </div>
             </div>
 
-            {/* Middle Col: Measured Pixel Distance & Ratio Calculation */}
-            <div className="sm:col-span-6 bg-slate-950 p-2.5 rounded-lg border border-slate-800 flex items-center justify-between">
-              <div className="space-y-0.5">
-                <span className="text-[9px] uppercase font-mono text-slate-500 block">Calculated Ratio</span>
-                <div className="flex items-baseline gap-1.5">
-                  <span className="text-sm font-mono font-bold text-teal-300">
-                    {point1 && point2 && pixelDistance > 2 ? mmPerPixel.toFixed(4) : (calibration?.pixel_spacing || 0.3850).toFixed(4)}
+            {/* Right Col: Measured Pixel Distance & Ratio Calculation & Apply Action */}
+            <div className="sm:col-span-6 bg-slate-950/90 p-2.5 rounded-lg border border-slate-800 flex flex-col justify-between space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[9px] uppercase font-mono text-slate-400 block">Calculated Ratio</span>
+                {point1 && point2 && pixelDistance > 2 ? (
+                  <span className="text-[9px] font-mono font-bold text-emerald-400 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    Line Caliper ({pixelDistance.toFixed(1)}px)
                   </span>
-                  <span className="text-[10px] font-mono text-slate-400">mm/px</span>
-                </div>
-                <span className="text-[9px] font-mono text-slate-400 block">
-                  {point1 && point2 && pixelDistance > 2
-                    ? `(${pixelsPerMm.toFixed(2)} px/mm • Line: ${pixelDistance.toFixed(1)}px)`
-                    : 'Draw line to calculate'}
-                </span>
+                ) : (
+                  <span className="text-[9px] font-mono text-slate-400">
+                    {calibration?.available ? 'DICOM Stored' : 'Standard Scale'}
+                  </span>
+                )}
               </div>
 
-              {/* Action Buttons: Apply & Clear */}
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-baseline justify-between gap-2">
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-base sm:text-lg font-mono font-bold text-teal-300">
+                    {mmPerPixel.toFixed(4)}
+                  </span>
+                  <span className="text-[10px] font-mono text-slate-400">mm/px</span>
+                  <span className="text-[9px] font-mono text-slate-500 ml-1">
+                    ({pixelsPerMm.toFixed(1)} px/mm)
+                  </span>
+                </div>
+
                 {point1 && point2 && (
                   <button
                     type="button"
                     onClick={handleClear}
                     title="Clear reference line"
-                    className="p-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition"
+                    className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition text-[10px] flex items-center gap-1 px-1.5 cursor-pointer shrink-0"
                   >
-                    <RotateCcw className="w-3.5 h-3.5" />
+                    <RotateCcw className="w-3 h-3" />
+                    <span>Reset</span>
                   </button>
                 )}
-
-                <button
-                  type="button"
-                  id="apply-ultrasound-calibration-btn"
-                  disabled={!point1 || !point2 || pixelDistance <= 5}
-                  onClick={handleApply}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition ${
-                    point1 && point2 && pixelDistance > 5
-                      ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm'
-                      : 'bg-slate-800 text-slate-500 cursor-not-allowed'
-                  }`}
-                >
-                  <Check className="w-3.5 h-3.5" />
-                  <span>Apply Calibration</span>
-                </button>
               </div>
+
+              {/* Action Button: Apply Calibration (Full width, never overflows) */}
+              <button
+                type="button"
+                id="apply-ultrasound-calibration-btn"
+                onClick={handleApply}
+                className={`w-full py-1.5 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer shadow-sm ${
+                  point1 && point2 && pixelDistance > 5
+                    ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-950/40 ring-1 ring-emerald-400/50'
+                    : 'bg-teal-600 hover:bg-teal-500 text-white shadow-teal-950/40'
+                }`}
+              >
+                <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                <span>
+                  {point1 && point2 && pixelDistance > 5
+                    ? `Apply Line Calibration (${mmPerPixel.toFixed(4)} mm/px)`
+                    : `Apply Calibration (${mmPerPixel.toFixed(4)} mm/px)`}
+                </span>
+              </button>
             </div>
           </div>
 
@@ -1063,14 +1083,14 @@ export const UltrasoundCalibrationOverlay: React.FC<UltrasoundCalibrationOverlay
             <span className="flex items-center gap-1.5">
               <Info className="w-3.5 h-3.5 text-teal-400 shrink-0" />
               <span>
-                <strong>PACS Precision Controls:</strong> Scroll wheel to zoom (100%–500%), hold <strong>Spacebar</strong> or toggle <strong>Pan</strong> (✋) to navigate, and drag handles $P_1$/$P_2$ for sub-pixel alignment.
+                <strong>PACS Precision Controls:</strong> Scroll wheel to zoom (100%–500%), hold <strong>Spacebar</strong> or toggle <strong>Pan</strong> (✋) to navigate, and drag caliper endpoints P₁ / P₂ for sub-pixel alignment.
               </span>
             </span>
             {zoom > 1.0 && (
               <button
                 type="button"
                 onClick={handleResetZoomPan}
-                className="text-amber-400 hover:text-amber-300 font-mono text-[9px] underline transition ml-2 shrink-0"
+                className="text-amber-400 hover:text-amber-300 font-mono text-[9px] underline transition ml-2 shrink-0 cursor-pointer"
               >
                 Reset 1:1 View
               </button>

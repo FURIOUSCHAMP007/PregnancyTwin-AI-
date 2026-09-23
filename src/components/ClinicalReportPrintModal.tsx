@@ -19,7 +19,8 @@ import {
   Copy,
   Check,
   FileCode,
-  Database
+  Database,
+  Loader2
 } from 'lucide-react';
 import { generateFhirBundle } from '../utils/fhirMapper';
 
@@ -37,6 +38,8 @@ export const ClinicalReportPrintModal: React.FC<ClinicalReportPrintModalProps> =
   const { patient, currentVisit, visits, velocities, trajectoryScore, whyNow, forecast } = twin;
   const [activeTab, setActiveTab] = useState<'report' | 'fhir'>('report');
   const [copied, setCopied] = useState(false);
+  const [isPrinting, setIsPrinting] = useState(false);
+  const [printNotification, setPrintNotification] = useState<string | null>(null);
 
   const handleCopyFhir = (jsonString: string) => {
     navigator.clipboard.writeText(jsonString);
@@ -44,8 +47,13 @@ export const ClinicalReportPrintModal: React.FC<ClinicalReportPrintModalProps> =
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handlePrint = () => {
+  const handlePrint = async () => {
+    setIsPrinting(true);
+    await new Promise((resolve) => setTimeout(resolve, 400));
     window.print();
+    setIsPrinting(false);
+    setPrintNotification('Document sent to print dialog. In destination, select "Save as PDF" to download as a digital file.');
+    setTimeout(() => setPrintNotification(null), 6000);
   };
 
   const handleDownloadSummary = () => {
@@ -119,12 +127,25 @@ export const ClinicalReportPrintModal: React.FC<ClinicalReportPrintModalProps> =
               <span>Export JSON</span>
             </button>
             <button
+              id="btn-modal-print-save-pdf"
               onClick={handlePrint}
-              className="flex items-center space-x-1.5 px-3.5 py-1.5 text-xs font-semibold text-white bg-teal-700 hover:bg-teal-800 rounded transition shadow-xs"
+              disabled={isPrinting}
+              className={`flex items-center space-x-1.5 px-3.5 py-1.5 text-xs font-semibold text-white rounded transition shadow-xs cursor-pointer ${
+                isPrinting ? 'bg-teal-850 opacity-90 cursor-wait' : 'bg-teal-700 hover:bg-teal-800'
+              }`}
               title="Print formatted document or save to PDF"
             >
-              <Printer className="w-3.5 h-3.5" />
-              <span>Print / Save PDF</span>
+              {isPrinting ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-teal-200" />
+                  <span>Preparing Print...</span>
+                </>
+              ) : (
+                <>
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>Print / Save PDF</span>
+                </>
+              )}
             </button>
             <button
               onClick={onClose}
@@ -135,6 +156,24 @@ export const ClinicalReportPrintModal: React.FC<ClinicalReportPrintModalProps> =
             </button>
           </div>
         </div>
+
+        {/* Print Success Confirmation Toast Banner */}
+        {printNotification && (
+          <div className="bg-emerald-950 border-b border-emerald-700/60 px-6 py-2.5 flex items-center justify-between text-xs text-emerald-100 animate-in fade-in print:hidden shrink-0">
+            <div className="flex items-center space-x-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span>{printNotification}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setPrintNotification(null)}
+              className="text-emerald-400 hover:text-emerald-200 p-0.5 rounded cursor-pointer"
+              title="Dismiss"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
 
         {/* Tab Switcher - Hidden in print */}
         <div className="flex border-b border-slate-200 bg-slate-50/50 px-6 py-2.5 print:hidden shrink-0">

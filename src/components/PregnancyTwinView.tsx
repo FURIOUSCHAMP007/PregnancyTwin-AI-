@@ -42,6 +42,8 @@ import {
 import { PregnancyDigitalTwin, VisitMeasurement, MedicationExposure, User } from '../types';
 import { simulateCounterfactual } from '../utils/trajectoryEngine';
 import { GrowthChartVisualization } from './GrowthChartVisualization';
+import { BiometricTrendLineChart } from './BiometricTrendLineChart';
+import { ProjectedDeliveryOutcomeCard } from './ProjectedDeliveryOutcomeCard';
 import { ClinicalReportPrintModal } from './ClinicalReportPrintModal';
 import { MedicationExposurePanel } from './MedicationExposurePanel';
 import { MedicationsHub } from './MedicationsHub';
@@ -52,6 +54,8 @@ import { TwinDeliveryPredictionTab } from './twin/TwinDeliveryPredictionTab';
 import { MaternalVitalsTracker } from './MaternalVitalsTracker';
 import { CriticalClustersSubPage } from './CriticalClustersSubPage';
 import { RiskGroupCohortSubPage } from './RiskGroupCohortSubPage';
+import { RecordsVerticalTimeline } from './RecordsVerticalTimeline';
+import { LongitudinalPregnancyPdfSummaryModal } from './LongitudinalPregnancyPdfSummaryModal';
 
 // Helper to get proper English ordinal suffixes for numeric values (e.g., 53rd, 50th)
 export function getOrdinal(n: number): string {
@@ -216,12 +220,14 @@ export const PregnancyTwinView: React.FC<PregnancyTwinViewProps> = ({
 
   // ACOG Clinical Report Print Modal State
   const [isPrintModalOpen, setIsPrintModalOpen] = useState<boolean>(false);
+  const [isLongitudinalPdfModalOpen, setIsLongitudinalPdfModalOpen] = useState<boolean>(false);
 
   // Floating Action Button (FAB) collapse state
   const [isFabCollapsed, setIsFabCollapsed] = useState<boolean>(false);
 
   // Filter for records view
   const [recordsFilter, setRecordsFilter] = useState<'all' | 'accepted' | 'pending'>('all');
+  const [recordsDisplayMode, setRecordsDisplayMode] = useState<'timeline' | 'table'>('timeline');
 
   // Independent maternal covariates states
   const [showCovariateEditor, setShowCovariateEditor] = useState<boolean>(false);
@@ -606,6 +612,14 @@ export const PregnancyTwinView: React.FC<PregnancyTwinViewProps> = ({
 
         </div>
       </div>
+
+      {/* Historical Biometric Trend Line Visualization (Recharts EFW & AFI) */}
+      <BiometricTrendLineChart
+        twin={twin}
+        selectedVisitId={selectedTimelineVisitId}
+        onSelectVisitId={(id) => setSelectedTimelineVisitId(id)}
+        onSelectVisit={onOpenReviewMeasurement}
+      />
 
       {/* Hero-ified Serial Trajectory Timeline Card */}
       <div className="bg-white border border-slate-300 rounded-xl p-5 shadow-2xs">
@@ -1081,6 +1095,12 @@ export const PregnancyTwinView: React.FC<PregnancyTwinViewProps> = ({
           );
         })()}
       </div>
+
+      {/* Projected Delivery Outcome Card with EDD Window & Trajectory Risk Stratification */}
+      <ProjectedDeliveryOutcomeCard
+        twin={twin}
+        onNavigateToDeliveryTab={() => handleSwitchSubPage('delivery')}
+      />
 
       {/* Flagship Triad: Trajectory Breakdown | AI Decision Support Alert | Next Visit Forecast */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
@@ -1899,6 +1919,19 @@ export const PregnancyTwinView: React.FC<PregnancyTwinViewProps> = ({
               <span>Initiate Ultrasound Upload</span>
             </button>
 
+            <button
+              id="btn-section-open-longitudinal-pdf"
+              onClick={() => setIsLongitudinalPdfModalOpen(true)}
+              className="px-3.5 py-2.5 bg-white hover:bg-slate-50 text-slate-800 hover:text-slate-950 text-xs font-bold rounded-xl border border-slate-300 shadow-2xs flex items-center space-x-2 transition-all cursor-pointer ring-2 ring-slate-400/20"
+              title="Generate structured print-ready PDF summary of longitudinal pregnancy history"
+            >
+              <Printer className="w-4 h-4 text-teal-700" />
+              <span>Longitudinal PDF Summary</span>
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-teal-50 text-teal-800 border border-teal-200 font-bold uppercase">
+                Print PDF
+              </span>
+            </button>
+
             {onNavigateToLiveInput && (
               <button
                 id="btn-section-open-live-studio"
@@ -1948,122 +1981,186 @@ export const PregnancyTwinView: React.FC<PregnancyTwinViewProps> = ({
         </div>
       </div>
 
-      {/* Chronological High-Density Visits Table with Filters */}
-      <div className="bg-white border border-slate-300 rounded-xl overflow-hidden shadow-2xs">
-        <div className="p-3.5 border-b border-slate-300 flex flex-wrap items-center justify-between gap-2 bg-slate-50/70">
-          <div className="flex items-center space-x-2">
-            <FileSpreadsheet className="w-4 h-4 text-slate-600" />
-            <h2 className="text-xs font-bold text-slate-800 uppercase tracking-tight">
-              Serial Longitudinal Ultrasound Checkpoints
-            </h2>
-            <span className="text-[11px] text-slate-500 font-medium">
-              ({filteredVisits.length} of {visits.length} checkpoints shown)
+      {/* Sub-View Mode Switcher: Vertical Timeline vs Checkpoints Table */}
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-white border border-slate-300 rounded-xl p-2.5 shadow-2xs">
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => setRecordsDisplayMode('timeline')}
+            className={`flex items-center space-x-2 px-3.5 py-2 rounded-lg text-xs font-bold transition cursor-pointer border ${
+              recordsDisplayMode === 'timeline'
+                ? 'bg-teal-700 text-white border-teal-700 shadow-xs'
+                : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+            }`}
+          >
+            <Activity className="w-3.5 h-3.5 text-teal-200" />
+            <span>Vertical Clinical Timeline</span>
+            <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded font-bold ${
+              recordsDisplayMode === 'timeline' ? 'bg-teal-800 text-teal-100' : 'bg-teal-100 text-teal-800'
+            }`}>
+              Events • Meds • Scans
             </span>
-          </div>
+          </button>
 
-          {/* Quick Filter Pills */}
-          <div className="flex items-center space-x-1 bg-white border border-slate-300 rounded-lg p-0.5 text-[11px]">
-            <button
-              onClick={() => setRecordsFilter('all')}
-              className={`px-2.5 py-1 rounded-md font-semibold cursor-pointer transition-colors ${
-                recordsFilter === 'all' ? 'bg-slate-800 text-white' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              All Scans ({visits.length})
-            </button>
-            <button
-              onClick={() => setRecordsFilter('accepted')}
-              className={`px-2.5 py-1 rounded-md font-semibold cursor-pointer transition-colors ${
-                recordsFilter === 'accepted' ? 'bg-emerald-700 text-white' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Doctor Accepted
-            </button>
-            <button
-              onClick={() => setRecordsFilter('pending')}
-              className={`px-2.5 py-1 rounded-md font-semibold cursor-pointer transition-colors ${
-                recordsFilter === 'pending' ? 'bg-amber-600 text-white' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Pending Validation
-            </button>
-          </div>
+          <button
+            onClick={() => setRecordsDisplayMode('table')}
+            className={`flex items-center space-x-2 px-3.5 py-2 rounded-lg text-xs font-bold transition cursor-pointer border ${
+              recordsDisplayMode === 'table'
+                ? 'bg-teal-700 text-white border-teal-700 shadow-xs'
+                : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+            }`}
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5" />
+            <span>Serial Scans Caliper Table</span>
+            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded font-bold bg-slate-200 text-slate-700">
+              {visits.length}
+            </span>
+          </button>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-xs">
-            <thead className="bg-slate-50 text-slate-600 border-b border-slate-200">
-              <tr>
-                <th className="py-2.5 px-3 text-left font-semibold text-[11px]">Visit Date</th>
-                <th className="py-2.5 px-3 text-left font-semibold text-[11px]">GA</th>
-                <th className="py-2.5 px-3 text-left font-semibold text-[11px]">AFI (cm)</th>
-                <th className="py-2.5 px-3 text-left font-semibold text-[11px]">SDP (cm)</th>
-                <th className="py-2.5 px-3 text-left font-semibold text-[11px]">EFW (g)</th>
-                <th className="py-2.5 px-3 text-left font-semibold text-[11px]">Growth %</th>
-                <th className="py-2.5 px-3 text-left font-semibold text-[11px]">FHR</th>
-                <th className="py-2.5 px-3 text-left font-semibold text-[11px]">Presentation</th>
-                <th className="py-2.5 px-3 text-left font-semibold text-[11px]">Review Status</th>
-                <th className="py-2.5 px-3 text-right font-semibold text-[11px]">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {filteredVisits.length === 0 ? (
-                <tr>
-                  <td colSpan={10} className="py-8 text-center text-slate-500 font-semibold bg-slate-50/50">
-                    No matching ultrasound checkpoints found. Use the "Upload Scan" or "Live Biometrics" options to input scan data.
-                  </td>
-                </tr>
-              ) : (
-                filteredVisits.map((v, idx) => (
-                  <tr key={v.id} className={idx % 2 === 1 ? 'bg-slate-50/30 hover:bg-slate-50 transition-colors' : 'hover:bg-slate-50 transition-colors'}>
-                    <td className="py-2.5 px-3 font-medium text-slate-900 text-xs">{v.date}</td>
-                    <td className="py-2.5 px-3 font-mono text-slate-800 text-[11px]">{v.gestationalAgeWeeks}w {v.gestationalAgeDays}d</td>
-                    <td className={`py-2.5 px-3 font-mono font-semibold ${v.amnioticFluidIndex_cm < 9.0 ? 'text-amber-800' : 'text-slate-800'}`}>
-                      {v.amnioticFluidIndex_cm.toFixed(1)}
-                    </td>
-                    <td className="py-2.5 px-3 text-slate-700 font-mono">{v.singleDeepestPocket_cm.toFixed(1)}</td>
-                    <td className="py-2.5 px-3 font-mono text-slate-800">{v.estimatedFetalWeight_g}</td>
-                    <td className="py-2.5 px-3">
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
-                        v.growthPercentile < 10
-                          ? 'bg-rose-50 text-rose-800 border border-rose-200'
-                          : v.growthPercentile < 30
-                          ? 'bg-amber-50 text-amber-800 border border-amber-200'
-                          : 'bg-slate-100 text-slate-700 border border-slate-200'
-                      }`}>
-                        {v.growthPercentile}th
-                      </span>
-                    </td>
-                    <td className="py-2.5 px-3 text-slate-700 font-mono">{v.fetalHeartRate_bpm} bpm</td>
-                    <td className="py-2.5 px-3 capitalize text-slate-700">{v.presentation}</td>
-                    <td className="py-2.5 px-3">
-                      <span className={`inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded border ${
-                        v.doctorReviewStatus === 'accepted'
-                          ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                          : v.doctorReviewStatus === 'edited'
-                          ? 'bg-blue-50 text-blue-800 border border-blue-200'
-                          : 'bg-amber-50 text-amber-800 border border-amber-200'
-                      }`}>
-                        {v.doctorReviewStatus.toUpperCase()}
-                      </span>
-                    </td>
-                    <td className="py-2.5 px-3 text-right">
-                      <button
-                        onClick={() => onOpenReviewMeasurement(v)}
-                        className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-md bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-[11px] font-medium transition-colors cursor-pointer"
-                        title="Review / Edit extracted measurements"
-                      >
-                        <Edit3 className="w-3 h-3 text-slate-500" />
-                        <span>Review</span>
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+        <div className="flex items-center space-x-2.5">
+          <button
+            onClick={() => setIsLongitudinalPdfModalOpen(true)}
+            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 border border-slate-300 transition cursor-pointer shadow-2xs"
+            title="Generate structured, print-ready PDF summary of longitudinal pregnancy history"
+          >
+            <Printer className="w-3.5 h-3.5 text-teal-700" />
+            <span>Generate PDF Summary</span>
+          </button>
+
+          <div className="text-xs text-slate-500 font-medium hidden md:flex items-center space-x-2 border-l border-slate-200 pl-2.5">
+            <span>Patient: <strong>{patient.name}</strong></span>
+            <span>•</span>
+            <span>MRN: <strong className="font-mono">{patient.mrn}</strong></span>
+          </div>
         </div>
       </div>
+
+      {/* Render Vertical Timeline or Tabular Records */}
+      {recordsDisplayMode === 'timeline' ? (
+        <RecordsVerticalTimeline
+          twin={twin}
+          onOpenReviewMeasurement={onOpenReviewMeasurement}
+          onOpenUpload={onOpenUpload}
+          onOpenLongitudinalPdf={() => setIsLongitudinalPdfModalOpen(true)}
+        />
+      ) : (
+        /* Chronological High-Density Visits Table with Filters */
+        <div className="bg-white border border-slate-300 rounded-xl overflow-hidden shadow-2xs">
+          <div className="p-3.5 border-b border-slate-300 flex flex-wrap items-center justify-between gap-2 bg-slate-50/70">
+            <div className="flex items-center space-x-2">
+              <FileSpreadsheet className="w-4 h-4 text-slate-600" />
+              <h2 className="text-xs font-bold text-slate-800 uppercase tracking-tight">
+                Serial Longitudinal Ultrasound Checkpoints
+              </h2>
+              <span className="text-[11px] text-slate-500 font-medium">
+                ({filteredVisits.length} of {visits.length} checkpoints shown)
+              </span>
+            </div>
+
+            {/* Quick Filter Pills */}
+            <div className="flex items-center space-x-1 bg-white border border-slate-300 rounded-lg p-0.5 text-[11px]">
+              <button
+                onClick={() => setRecordsFilter('all')}
+                className={`px-2.5 py-1 rounded-md font-semibold cursor-pointer transition-colors ${
+                  recordsFilter === 'all' ? 'bg-slate-800 text-white' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                All Scans ({visits.length})
+              </button>
+              <button
+                onClick={() => setRecordsFilter('accepted')}
+                className={`px-2.5 py-1 rounded-md font-semibold cursor-pointer transition-colors ${
+                  recordsFilter === 'accepted' ? 'bg-emerald-700 text-white' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Doctor Accepted
+              </button>
+              <button
+                onClick={() => setRecordsFilter('pending')}
+                className={`px-2.5 py-1 rounded-md font-semibold cursor-pointer transition-colors ${
+                  recordsFilter === 'pending' ? 'bg-amber-600 text-white' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Pending Validation
+              </button>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-xs">
+              <thead className="bg-slate-50 text-slate-600 border-b border-slate-200">
+                <tr>
+                  <th className="py-2.5 px-3 text-left font-semibold text-[11px]">Visit Date</th>
+                  <th className="py-2.5 px-3 text-left font-semibold text-[11px]">GA</th>
+                  <th className="py-2.5 px-3 text-left font-semibold text-[11px]">AFI (cm)</th>
+                  <th className="py-2.5 px-3 text-left font-semibold text-[11px]">SDP (cm)</th>
+                  <th className="py-2.5 px-3 text-left font-semibold text-[11px]">EFW (g)</th>
+                  <th className="py-2.5 px-3 text-left font-semibold text-[11px]">Growth %</th>
+                  <th className="py-2.5 px-3 text-left font-semibold text-[11px]">FHR</th>
+                  <th className="py-2.5 px-3 text-left font-semibold text-[11px]">Presentation</th>
+                  <th className="py-2.5 px-3 text-left font-semibold text-[11px]">Review Status</th>
+                  <th className="py-2.5 px-3 text-right font-semibold text-[11px]">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredVisits.length === 0 ? (
+                  <tr>
+                    <td colSpan={10} className="py-8 text-center text-slate-500 font-semibold bg-slate-50/50">
+                      No matching ultrasound checkpoints found. Use the "Upload Scan" or "Live Biometrics" options to input scan data.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredVisits.map((v, idx) => (
+                    <tr key={v.id} className={idx % 2 === 1 ? 'bg-slate-50/30 hover:bg-slate-50 transition-colors' : 'hover:bg-slate-50 transition-colors'}>
+                      <td className="py-2.5 px-3 font-medium text-slate-900 text-xs">{v.date}</td>
+                      <td className="py-2.5 px-3 font-mono text-slate-800 text-[11px]">{v.gestationalAgeWeeks}w {v.gestationalAgeDays}d</td>
+                      <td className={`py-2.5 px-3 font-mono font-semibold ${v.amnioticFluidIndex_cm < 9.0 ? 'text-amber-800' : 'text-slate-800'}`}>
+                        {v.amnioticFluidIndex_cm.toFixed(1)}
+                      </td>
+                      <td className="py-2.5 px-3 text-slate-700 font-mono">{v.singleDeepestPocket_cm.toFixed(1)}</td>
+                      <td className="py-2.5 px-3 font-mono text-slate-800">{v.estimatedFetalWeight_g}</td>
+                      <td className="py-2.5 px-3">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
+                          v.growthPercentile < 10
+                            ? 'bg-rose-50 text-rose-800 border border-rose-200'
+                            : v.growthPercentile < 30
+                            ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                            : 'bg-slate-100 text-slate-700 border border-slate-200'
+                        }`}>
+                          {v.growthPercentile}th
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 text-slate-700 font-mono">{v.fetalHeartRate_bpm} bpm</td>
+                      <td className="py-2.5 px-3 capitalize text-slate-700">{v.presentation}</td>
+                      <td className="py-2.5 px-3">
+                        <span className={`inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded border ${
+                          v.doctorReviewStatus === 'accepted'
+                            ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                            : v.doctorReviewStatus === 'edited'
+                            ? 'bg-blue-50 text-blue-800 border border-blue-200'
+                            : 'bg-amber-50 text-amber-800 border border-amber-200'
+                        }`}>
+                          {v.doctorReviewStatus.toUpperCase()}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 text-right">
+                        <button
+                          onClick={() => onOpenReviewMeasurement(v)}
+                          className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-md bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-[11px] font-medium transition-colors cursor-pointer"
+                          title="Review / Edit extracted measurements"
+                        >
+                          <Edit3 className="w-3 h-3 text-slate-500" />
+                          <span>Review</span>
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 
@@ -2461,6 +2558,15 @@ export const PregnancyTwinView: React.FC<PregnancyTwinViewProps> = ({
           twin={twin}
           currentUser={currentUser}
           onClose={() => setIsPrintModalOpen(false)}
+        />
+      )}
+
+      {/* Longitudinal Pregnancy History Print-Ready PDF Summary Modal */}
+      {isLongitudinalPdfModalOpen && (
+        <LongitudinalPregnancyPdfSummaryModal
+          twin={twin}
+          currentUser={currentUser}
+          onClose={() => setIsLongitudinalPdfModalOpen(false)}
         />
       )}
 

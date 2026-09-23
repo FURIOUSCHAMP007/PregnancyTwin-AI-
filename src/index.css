@@ -57,4 +57,53 @@
   scrollbar-width: none !important;  /* Firefox */
 }
 
+/* Bulletproof Print Media Styles for Structured Clinical PDF Summaries */
+@media print {
+  body {
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  #longitudinal-pdf-summary-print-container,
+  #longitudinal-pdf-summary-print-container *,
+  #clinical-report-print-container,
+  #clinical-report-print-container * {
+    visibility: visible;
+  }
+
+  #longitudinal-pdf-summary-print-container,
+  #clinical-report-print-container {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .page-break-inside-avoid {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  @page {
+    margin: 12mm 10mm;
+    size: letter portrait;
+  }
+}
+
 

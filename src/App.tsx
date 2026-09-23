@@ -758,6 +758,7 @@ export default function App() {
                     setSelectedPatientId(id);
                     setActiveTab('live-input');
                   }}
+                  showToast={showToast}
                 />
 
                 {digitalTwin && (

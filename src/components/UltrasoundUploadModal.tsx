@@ -189,6 +189,10 @@ export const UltrasoundUploadModal: React.FC<UltrasoundUploadModalProps> = ({
   const [isDemoCvRun, setIsDemoCvRun] = useState<boolean>(false);
 
   useEffect(() => {
+    handleRunUltrasoundAiPipeline();
+  }, []);
+
+  useEffect(() => {
     if (extractedData) {
       setVerifHc(extractedData.biometrics?.hc_mm?.toString() || '');
       setVerifBpd(extractedData.biometrics?.bpd_mm?.toString() || '');
@@ -722,14 +726,14 @@ export const UltrasoundUploadModal: React.FC<UltrasoundUploadModalProps> = ({
         </td>
 
         {/* Column 2: Raw Extracted Value from Gemini Vision */}
-        <td className="p-3">
-          <span className="font-mono text-slate-500 font-semibold bg-slate-50 border border-slate-150 px-2 py-0.5 rounded">
+        <td className="p-3 whitespace-nowrap">
+          <span className="inline-flex items-center font-mono text-slate-700 font-bold bg-slate-100 border border-slate-200 px-2.5 py-1 rounded text-xs shadow-3xs">
             {extractedValue !== 'Not found' ? `${extractedValue} ${unit}` : 'Not found'}
           </span>
         </td>
 
         {/* Column 3: Verified Value (Editable Input mapped to current state) */}
-        <td className="p-3">
+        <td className="p-3 whitespace-nowrap">
           <div className="flex items-center space-x-1.5">
             <input
               type="number"
@@ -749,32 +753,32 @@ export const UltrasoundUploadModal: React.FC<UltrasoundUploadModalProps> = ({
               onBlur={() => {
                 setHoveredParameter(null);
               }}
-              className={`w-28 text-xs font-mono font-bold border rounded px-2 py-1 text-center transition focus:outline-none focus:ring-1 ${
+              className={`w-20 text-xs font-mono font-bold border rounded-md px-2 py-1.5 text-center transition focus:outline-none focus:ring-2 ${
                 isRejected
                   ? 'bg-rose-50/50 border-rose-200 text-rose-500 line-through cursor-not-allowed shadow-inner'
                   : isConfirmed
                   ? 'bg-emerald-50/20 border-emerald-300 text-emerald-800 focus:border-emerald-500 focus:ring-emerald-500 shadow-2xs'
                   : isEdited
                   ? 'bg-blue-50/20 border-blue-300 text-blue-800 focus:border-blue-500 focus:ring-blue-500 shadow-2xs'
-                  : 'bg-white border-slate-300 text-slate-800 focus:border-teal-500 focus:ring-teal-500 shadow-3xs'
+                  : 'bg-white border-slate-300 text-slate-900 focus:border-teal-500 focus:ring-teal-500 shadow-2xs'
               }`}
               placeholder="—"
             />
-            <span className="text-[10px] text-slate-400 font-bold font-mono uppercase">{unit}</span>
+            <span className="text-[10px] text-slate-500 font-bold font-mono uppercase">{unit}</span>
           </div>
         </td>
 
         {/* Column 4: Validation Status & biological bounds warnings */}
-        <td className="p-3 text-center">
+        <td className="p-3 text-center whitespace-nowrap">
           <div className="flex flex-col items-center space-y-1">
-            <span className={`inline-flex items-center text-[9px] font-bold font-mono px-2 py-0.5 rounded-full border uppercase tracking-wider ${
+            <span className={`inline-flex items-center text-[9px] font-bold font-mono px-2.5 py-0.5 rounded-full border uppercase tracking-wider ${
               isConfirmed
                 ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                 : isEdited
                 ? 'bg-blue-50 text-blue-700 border-blue-200'
                 : isRejected
                 ? 'bg-rose-50 text-rose-700 border-rose-200'
-                : 'bg-amber-50 text-amber-700 border-amber-200 animate-pulse'
+                : 'bg-amber-50 text-amber-700 border-amber-200'
             }`}>
               {isConfirmed && '✓ Confirmed'}
               {isEdited && '✎ Edited'}
@@ -782,7 +786,7 @@ export const UltrasoundUploadModal: React.FC<UltrasoundUploadModalProps> = ({
               {isPending && '⏳ Pending'}
             </span>
             {isEdited && getValidationWarning(code, currentVal) && (
-              <span className="text-[8px] text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded font-black tracking-tight animate-pulse flex items-center gap-0.5 shrink-0 whitespace-nowrap">
+              <span className="text-[8px] text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded font-black tracking-tight flex items-center gap-0.5 shrink-0 whitespace-nowrap">
                 <AlertCircle className="w-2.5 h-2.5 text-amber-600 shrink-0" />
                 {getValidationWarning(code, currentVal)}
               </span>
@@ -791,8 +795,8 @@ export const UltrasoundUploadModal: React.FC<UltrasoundUploadModalProps> = ({
         </td>
 
         {/* Column 5: Validation Action Controls */}
-        <td className="p-3 text-right">
-          <div className="inline-flex items-center border border-slate-200 rounded-lg overflow-hidden bg-white shadow-3xs">
+        <td className="p-3 text-right whitespace-nowrap">
+          <div className="inline-flex items-center border border-slate-200 rounded-lg overflow-hidden bg-white shadow-2xs shrink-0">
             {/* Confirm button */}
             <button
               type="button"
@@ -803,14 +807,14 @@ export const UltrasoundUploadModal: React.FC<UltrasoundUploadModalProps> = ({
                 }
               }}
               title="Confirm value"
-              className={`px-3 py-1.5 border-r border-slate-200 transition-all flex items-center space-x-1 ${
+              className={`px-2.5 py-1.5 border-r border-slate-200 transition-all flex items-center space-x-1 cursor-pointer ${
                 isConfirmed
-                  ? 'bg-emerald-500 text-white font-bold'
-                  : 'text-slate-500 hover:text-emerald-600 hover:bg-slate-50'
+                  ? 'bg-emerald-600 text-white font-bold'
+                  : 'text-slate-600 hover:text-emerald-700 hover:bg-slate-50'
               }`}
             >
               <Check className="w-3 h-3" />
-              <span className="text-[10px] font-semibold">Confirm</span>
+              <span className="text-[10px] font-bold">Confirm</span>
             </button>
 
             {/* Edit button */}
@@ -823,14 +827,14 @@ export const UltrasoundUploadModal: React.FC<UltrasoundUploadModalProps> = ({
                 }
               }}
               title="Edit value"
-              className={`px-3 py-1.5 border-r border-slate-200 transition-all flex items-center space-x-1 ${
+              className={`px-2.5 py-1.5 border-r border-slate-200 transition-all flex items-center space-x-1 cursor-pointer ${
                 isEdited
-                  ? 'bg-blue-500 text-white font-bold'
-                  : 'text-slate-500 hover:text-blue-600 hover:bg-slate-50'
+                  ? 'bg-blue-600 text-white font-bold'
+                  : 'text-slate-600 hover:text-blue-700 hover:bg-slate-50'
               }`}
             >
               <Edit3 className="w-3 h-3" />
-              <span className="text-[10px] font-semibold">Edit</span>
+              <span className="text-[10px] font-bold">Edit</span>
             </button>
 
             {/* Reject button */}
@@ -840,14 +844,14 @@ export const UltrasoundUploadModal: React.FC<UltrasoundUploadModalProps> = ({
                 setStatus('rejected');
               }}
               title="Reject value"
-              className={`px-3 py-1.5 transition-all flex items-center space-x-1 ${
+              className={`px-2.5 py-1.5 transition-all flex items-center space-x-1 cursor-pointer ${
                 isRejected
-                  ? 'bg-rose-500 text-white font-bold'
-                  : 'text-slate-500 hover:text-rose-600 hover:bg-slate-50'
+                  ? 'bg-rose-600 text-white font-bold'
+                  : 'text-slate-600 hover:text-rose-700 hover:bg-slate-50'
               }`}
             >
               <Trash2 className="w-3 h-3" />
-              <span className="text-[10px] font-semibold">Reject</span>
+              <span className="text-[10px] font-bold">Reject</span>
             </button>
           </div>
         </td>
@@ -905,7 +909,7 @@ export const UltrasoundUploadModal: React.FC<UltrasoundUploadModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto">
-      <div className="bg-white border border-slate-200 rounded-xl w-full max-w-4xl lg:max-w-6xl overflow-hidden shadow-2xl my-6 flex flex-col max-h-[92vh]">
+      <div className="bg-white border border-slate-200 rounded-xl w-full max-w-5xl xl:max-w-7xl overflow-hidden shadow-2xl my-4 flex flex-col max-h-[94vh]">
         
         {/* Modal Header */}
         <div className="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
@@ -1864,8 +1868,8 @@ export const UltrasoundUploadModal: React.FC<UltrasoundUploadModalProps> = ({
                       </button>
                     </div>
 
-                    <div className="overflow-x-auto">
-                      <table className="w-full border-collapse text-left text-xs text-slate-700">
+                    <div className="overflow-x-auto border rounded-lg border-slate-200 shadow-2xs">
+                      <table className="w-full border-collapse text-left text-xs text-slate-700 min-w-[560px]">
                         <thead>
                           <tr className="border-b border-slate-200 bg-slate-50/75 text-[9px] font-bold uppercase text-slate-500 tracking-wider">
                             <th className="p-2">Biometric</th>

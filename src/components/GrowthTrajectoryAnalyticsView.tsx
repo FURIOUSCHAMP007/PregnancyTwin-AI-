@@ -20,7 +20,9 @@ import {
   Info,
   Scale,
   Percent,
-  BookOpen
+  BookOpen,
+  Sparkles,
+  Brain
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -39,6 +41,8 @@ import { PregnancyDigitalTwin, Patient, VisitMeasurement } from '../types';
 import { GrowthChartVisualization } from './GrowthChartVisualization';
 import { NicuHeatmapWidget } from './NicuHeatmapWidget';
 import { calculateLongitudinalHcAcAnalysis } from '../utils/trajectoryEngine';
+import { PredictiveWeightModelingTab } from './PredictiveWeightModelingTab';
+import { TrajectoryShapExplainabilityPanel } from './TrajectoryShapExplainabilityPanel';
 
 interface RefPoint {
   p10: number;
@@ -156,6 +160,8 @@ export const GrowthTrajectoryAnalyticsView: React.FC<GrowthTrajectoryAnalyticsVi
   const [selectedCohortFilter, setSelectedCohortFilter] = useState<'ALL' | 'ALERT' | 'NORMAL'>('ALL');
   const [hcAcViewMode, setHcAcViewMode] = useState<'chart' | 'log'>('chart');
   const [showCohortBar, setShowCohortBar] = useState<boolean>(false);
+  type AnalyticsActiveTab = 'predictive' | 'curves' | 'symmetry' | 'shap' | 'all';
+  const [activeTab, setActiveTab] = useState<AnalyticsActiveTab>('predictive');
 
   // Interactive Reference Percentile Curve Toggles
   const [selectedStandard, setSelectedStandard] = useState<'HADLOCK' | 'INTERGROWTH'>('HADLOCK');
@@ -361,7 +367,108 @@ export const GrowthTrajectoryAnalyticsView: React.FC<GrowthTrajectoryAnalyticsVi
         )}
       </div>
 
+      {/* Analytics Sub-Tab Navigation Switcher */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-200 bg-white p-3 sm:px-5 rounded-xl shadow-xs gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => setActiveTab('predictive')}
+            className={`flex items-center space-x-2 px-3.5 py-2 rounded-lg text-xs font-bold transition cursor-pointer border ${
+              activeTab === 'predictive'
+                ? 'bg-violet-600 text-white border-violet-600 shadow-xs'
+                : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+            }`}
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+            <span>Predictive EFW Modeling</span>
+            <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded font-bold ${
+              activeTab === 'predictive' ? 'bg-violet-700 text-violet-100' : 'bg-violet-100 text-violet-800'
+            }`}>
+              2–4w Forecast
+            </span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('curves')}
+            className={`flex items-center space-x-2 px-3.5 py-2 rounded-lg text-xs font-bold transition cursor-pointer border ${
+              activeTab === 'curves'
+                ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+            }`}
+          >
+            <TrendingUp className="w-3.5 h-3.5" />
+            <span>Population Reference Curves</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('symmetry')}
+            className={`flex items-center space-x-2 px-3.5 py-2 rounded-lg text-xs font-bold transition cursor-pointer border ${
+              activeTab === 'symmetry'
+                ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
+                : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+            }`}
+          >
+            <Activity className="w-3.5 h-3.5 text-teal-400" />
+            <span>Symmetry &amp; HC/AC Tracker</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('shap')}
+            className={`flex items-center space-x-2 px-3.5 py-2 rounded-lg text-xs font-bold transition cursor-pointer border ${
+              activeTab === 'shap'
+                ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
+                : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+            }`}
+          >
+            <Brain className="w-3.5 h-3.5 text-purple-300" />
+            <span>SHAP Explainability</span>
+            <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded font-bold ${
+              activeTab === 'shap' ? 'bg-purple-700 text-purple-100' : 'bg-purple-100 text-purple-800'
+            }`}>
+              ML Attribution
+            </span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('all')}
+            className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-xs font-bold transition cursor-pointer border ${
+              activeTab === 'all'
+                ? 'bg-slate-800 text-white border-slate-800 shadow-xs'
+                : 'bg-slate-50 hover:bg-slate-100 text-slate-600 border-slate-200'
+            }`}
+          >
+            <Layers className="w-3.5 h-3.5" />
+            <span>Full Integrated Suite</span>
+          </button>
+        </div>
+
+        <div className="hidden xl:flex items-center space-x-2 text-xs text-slate-500 font-mono">
+          <span>Active Patient:</span>
+          <strong className="text-slate-800">{twin.patient.name}</strong>
+          <span className="text-violet-700 font-bold">({twin.currentVisit?.gestationalAgeWeeks}w GA)</span>
+        </div>
+      </div>
+
+      {/* Predictive EFW Modeling Tab (Target: 2-4 Week Forecast) */}
+      {(activeTab === 'predictive' || activeTab === 'all') && (
+        <PredictiveWeightModelingTab
+          twin={twin}
+          onOpenLiveInput={onOpenLiveInput}
+          onSelectVisit={onOpenReviewMeasurement}
+          onNavigateToShap={() => setActiveTab('shap')}
+        />
+      )}
+
+      {/* SHAP Feature Attributions Panel (Explains Trajectory Classification & Driving Biometrics) */}
+      {(activeTab === 'shap' || activeTab === 'all') && (
+        <TrajectoryShapExplainabilityPanel
+          twin={twin}
+          onOpenLiveStudio={onOpenLiveInput}
+        />
+      )}
+
       {/* Interactive Fetal Growth Reference Percentile Curves Overlay (EFW & AC) */}
+      {(activeTab === 'curves' || activeTab === 'all') && (
+      <>
       <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs space-y-4">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between border-b border-slate-100 pb-3 gap-3">
           <div className="flex items-start space-x-3">
@@ -665,8 +772,11 @@ export const GrowthTrajectoryAnalyticsView: React.FC<GrowthTrajectoryAnalyticsVi
 
       {/* 2. Primary Deep Growth Chart Visualization Component */}
       <GrowthChartVisualization twin={twin} onSelectVisit={onOpenReviewMeasurement} />
+      </>
+      )}
 
       {/* 2.5 Symmetrical vs Asymmetrical Growth Analysis HUD */}
+      {(activeTab === 'symmetry' || activeTab === 'all') && (
       <div className="bg-slate-900 text-slate-100 rounded-xl p-5 border border-slate-800 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-800 pb-3 gap-2">
           <div className="flex items-center space-x-2.5">
@@ -895,8 +1005,11 @@ export const GrowthTrajectoryAnalyticsView: React.FC<GrowthTrajectoryAnalyticsVi
           </div>
         </div>
       </div>
+      )}
 
-      {/* PregnancyTwin AI: Track -> Detect -> Explain Clinical Core Engine Widget */}
+      {/* PregnancyTwin AI: Track -> Detect -> Explain Clinical Core Engine Widget & Population Summary */}
+      {(activeTab === 'curves' || activeTab === 'all') && (
+      <>
       <NicuHeatmapWidget patients={patients} />
 
       {/* 3. Trajectory Velocity & Population Statistical Context */}
@@ -1056,6 +1169,8 @@ export const GrowthTrajectoryAnalyticsView: React.FC<GrowthTrajectoryAnalyticsVi
           </div>
         </div>
       </div>
+      </>
+      )}
 
     </div>
   );
