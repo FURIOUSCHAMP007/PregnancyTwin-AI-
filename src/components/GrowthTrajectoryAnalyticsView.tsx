@@ -43,6 +43,7 @@ import { NicuHeatmapWidget } from './NicuHeatmapWidget';
 import { calculateLongitudinalHcAcAnalysis } from '../utils/trajectoryEngine';
 import { PredictiveWeightModelingTab } from './PredictiveWeightModelingTab';
 import { TrajectoryShapExplainabilityPanel } from './TrajectoryShapExplainabilityPanel';
+import { CohortComparisonView } from './CohortComparisonView';
 
 interface RefPoint {
   p10: number;
@@ -160,7 +161,7 @@ export const GrowthTrajectoryAnalyticsView: React.FC<GrowthTrajectoryAnalyticsVi
   const [selectedCohortFilter, setSelectedCohortFilter] = useState<'ALL' | 'ALERT' | 'NORMAL'>('ALL');
   const [hcAcViewMode, setHcAcViewMode] = useState<'chart' | 'log'>('chart');
   const [showCohortBar, setShowCohortBar] = useState<boolean>(false);
-  type AnalyticsActiveTab = 'predictive' | 'curves' | 'symmetry' | 'shap' | 'all';
+  type AnalyticsActiveTab = 'predictive' | 'curves' | 'symmetry' | 'shap' | 'cohort' | 'all';
   const [activeTab, setActiveTab] = useState<AnalyticsActiveTab>('predictive');
 
   // Interactive Reference Percentile Curve Toggles
@@ -429,6 +430,23 @@ export const GrowthTrajectoryAnalyticsView: React.FC<GrowthTrajectoryAnalyticsVi
           </button>
 
           <button
+            onClick={() => setActiveTab('cohort')}
+            className={`flex items-center space-x-2 px-3.5 py-2 rounded-lg text-xs font-bold transition cursor-pointer border ${
+              activeTab === 'cohort'
+                ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+            }`}
+          >
+            <Users className="w-3.5 h-3.5 text-blue-300" />
+            <span>Cohort Comparison</span>
+            <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded font-bold ${
+              activeTab === 'cohort' ? 'bg-blue-700 text-blue-100' : 'bg-blue-100 text-blue-800'
+            }`}>
+              D3 Dual Engine
+            </span>
+          </button>
+
+          <button
             onClick={() => setActiveTab('all')}
             className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-xs font-bold transition cursor-pointer border ${
               activeTab === 'all'
@@ -447,6 +465,16 @@ export const GrowthTrajectoryAnalyticsView: React.FC<GrowthTrajectoryAnalyticsVi
           <span className="text-violet-700 font-bold">({twin.currentVisit?.gestationalAgeWeeks}w GA)</span>
         </div>
       </div>
+
+      {/* Cohort Comparison Tool (Side-by-side D3 Trajectory Analysis) */}
+      {(activeTab === 'cohort' || activeTab === 'all') && (
+        <CohortComparisonView
+          twin={twin}
+          patients={patients}
+          selectedPatientId={selectedPatientId}
+          onSelectPatient={onSelectPatient}
+        />
+      )}
 
       {/* Predictive EFW Modeling Tab (Target: 2-4 Week Forecast) */}
       {(activeTab === 'predictive' || activeTab === 'all') && (

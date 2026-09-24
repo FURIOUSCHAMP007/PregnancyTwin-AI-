@@ -1,0 +1,39 @@
+{
+  "image_pipeline": {
+    "color_mode": "grayscale",
+    "normalization": {
+      "mean": [0.252],
+      "std": [0.178],
+      "range": "[0, 1]"
+    },
+    "resize": {
+      "target_height": 256,
+      "target_width": 256,
+      "interpolation": "cv2.INTER_LINEAR"
+    },
+    "artifact_handling": "edge_contrast_clahe"
+  },
+  "mask_pipeline": {
+    "binary_threshold": 0.5,
+    "resize": {
+      "target_height": 256,
+      "target_width": 256,
+      "interpolation": "cv2.INTER_NEAREST"
+    },
+    "classes": {
+      "0": "background",
+      "1": "fetal_abdomen_contour"
+    }
+  },
+  "augmentations": [
+    "HorizontalFlip(p=0.5)",
+    "ShiftScaleRotate(shift_limit=0.06, scale_limit=0.1, rotate_limit=15, p=0.7)",
+    "RandomBrightnessContrast(brightness_limit=0.15, contrast_limit=0.15, p=0.5)",
+    "GaussianNoise(var_limit=(10.0, 50.0), p=0.3)"
+  ],
+  "calibration": {
+    "default_pixel_spacing_mm": 0.385,
+    "scale_source": "DICOM_PIXEL_SPACING_OR_PROBE_GRID",
+    "calibration_enforced": true
+  }
+}

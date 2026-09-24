@@ -1,0 +1,65 @@
+{
+  "model_name": "model_10_multimodal_trajectory_risk_engine",
+  "version": "10.3.0",
+  "feature_dimension": 36,
+  "feature_groups": {
+    "fetal_biometry": ["hc_mm", "bpd_mm", "ofd_mm", "ac_mm", "fl_mm"],
+    "fetal_growth": [
+      "efw_g",
+      "growth_percentile",
+      "efw_delta_g",
+      "efw_velocity",
+      "efw_acceleration",
+      "growth_percentile_delta",
+      "growth_percentile_velocity",
+      "consecutive_declining_growth_visits"
+    ],
+    "amniotic_fluid": [
+      "afi_cm",
+      "dvp_cm",
+      "afi_delta_cm",
+      "afi_velocity",
+      "afi_acceleration",
+      "afi_trend_slope",
+      "consecutive_declining_afi_visits"
+    ],
+    "maternal_context": [
+      "maternal_age_years",
+      "systolic_bp",
+      "diastolic_bp",
+      "sbp_delta",
+      "sbp_velocity",
+      "sbp_trend_slope",
+      "maternal_weight_kg",
+      "weight_change_kg",
+      "weight_velocity",
+      "heart_rate_bpm",
+      "temperature_c",
+      "hemoglobin_g_dl",
+      "platelets_x10e9_l"
+    ],
+    "clinical_history": [
+      "previous_fgr",
+      "previous_preterm_birth",
+      "previous_stillbirth",
+      "preeclampsia_history",
+      "chronic_hypertension",
+      "smoking",
+      "is_multiple_pregnancy",
+      "is_ivf"
+    ],
+    "medication_context": [
+      "active_medication_count",
+      "medication_count_change",
+      "new_medication_flag"
+    ],
+    "temporal_pacing": [
+      "gestational_age_weeks",
+      "visit_number",
+      "time_gap_days"
+    ],
+    "data_quality": [
+      "completeness_score"
+    ]
+  }
+}

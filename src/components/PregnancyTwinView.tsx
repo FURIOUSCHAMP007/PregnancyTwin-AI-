@@ -56,6 +56,8 @@ import { CriticalClustersSubPage } from './CriticalClustersSubPage';
 import { RiskGroupCohortSubPage } from './RiskGroupCohortSubPage';
 import { RecordsVerticalTimeline } from './RecordsVerticalTimeline';
 import { LongitudinalPregnancyPdfSummaryModal } from './LongitudinalPregnancyPdfSummaryModal';
+import { MaternalRiskRadialGaugeSection } from './twin/MaternalRiskRadialGaugeSection';
+import { calculateMaternalBaseline, extractMaternalBaselineFromPatient } from '../utils/maternalModels';
 
 // Helper to get proper English ordinal suffixes for numeric values (e.g., 53rd, 50th)
 export function getOrdinal(n: number): string {
@@ -105,6 +107,12 @@ export const PregnancyTwinView: React.FC<PregnancyTwinViewProps> = ({
   onSelectPatient
 }) => {
   const { patient, visits, currentVisit, velocities, trajectoryScore, whyNow, forecast, riskFactors } = twin;
+
+  // PLAN 1: Structured Maternal Baseline Model (XGBoost) & Contextual Risk Contribution
+  const maternalBaseline = React.useMemo(() => {
+    if (twin.maternalBaseline) return twin.maternalBaseline;
+    return calculateMaternalBaseline(extractMaternalBaselineFromPatient(patient, visits));
+  }, [twin.maternalBaseline, patient, visits]);
 
   // Active Sub-Page state
   const [activeSubPage, setActiveSubPage] = useState<TwinSubPage>(initialSubPage);
@@ -353,10 +361,14 @@ export const PregnancyTwinView: React.FC<PregnancyTwinViewProps> = ({
     },
     {
       id: 'vitals',
-      label: 'Maternal Vitals Correlation',
+      label: 'Maternal Physiology & Baseline',
       icon: Heart,
-      badge: 'Vitals Active',
-      badgeColor: 'bg-rose-50 text-rose-800 border-rose-200 font-semibold'
+      badge: `Risk: ${maternalBaseline.riskContribution.compositeScore}/100`,
+      badgeColor: maternalBaseline.riskContribution.compositeScore >= 65
+        ? 'bg-rose-100 text-rose-900 border-rose-300 font-black'
+        : maternalBaseline.riskContribution.compositeScore >= 45
+        ? 'bg-amber-100 text-amber-900 border-amber-300 font-bold'
+        : 'bg-teal-50 text-teal-800 border-teal-200 font-semibold'
     },
     {
       id: 'analytics',
@@ -516,10 +528,20 @@ export const PregnancyTwinView: React.FC<PregnancyTwinViewProps> = ({
                 <div className="text-xs font-black text-slate-800 font-mono">
                   {trajectoryScore.overallScore} / 100
                 </div>
+                <div className="flex items-baseline justify-between text-[10px] text-slate-500 pt-1 border-t border-slate-100">
+                  <span>Maternal Prior:</span>
+                  <span className={`font-mono font-bold ${
+                    maternalBaseline.riskContribution.compositeScore >= 65 ? 'text-rose-700' :
+                    maternalBaseline.riskContribution.compositeScore >= 45 ? 'text-amber-700' : 'text-teal-700'
+                  }`}>
+                    {maternalBaseline.riskContribution.compositeScore}/100
+                  </span>
+                </div>
               </div>
             </div>
-            <div className="mt-2 text-[9px] font-mono text-slate-400 border-t border-slate-100/50 pt-1">
-              {trajectoryScore.confidenceScore}% Model Conf
+            <div className="mt-2 text-[9px] font-mono text-slate-400 border-t border-slate-100/50 pt-1 flex items-center justify-between">
+              <span>{trajectoryScore.confidenceScore}% Model Conf</span>
+              <span className="font-bold text-slate-600">x{maternalBaseline.riskContribution.contextMultiplier} Prior</span>
             </div>
           </div>
 
@@ -612,6 +634,13 @@ export const PregnancyTwinView: React.FC<PregnancyTwinViewProps> = ({
 
         </div>
       </div>
+
+      {/* Maternal Risk Contribution Prior & Precision Radial Progress Gauge (PLAN 1 XGBoost Prior) */}
+      <MaternalRiskRadialGaugeSection
+        patient={patient}
+        visits={visits}
+        onNavigateToVitals={() => handleSwitchSubPage('vitals')}
+      />
 
       {/* Historical Biometric Trend Line Visualization (Recharts EFW & AFI) */}
       <BiometricTrendLineChart
@@ -1191,7 +1220,38 @@ export const PregnancyTwinView: React.FC<PregnancyTwinViewProps> = ({
                 </div>
               </div>
 
-              {/* Factor 5: Why Flagged Status */}
+              {/* Factor 5: Maternal Baseline Context (PLAN 1 XGBoost Prior) */}
+              <div className="bg-slate-50 border border-slate-200/70 rounded-lg p-2 text-xs">
+                <div className="flex justify-between items-center mb-1">
+                  <span className="font-semibold text-slate-700 flex items-center gap-1">
+                    <Heart className="w-3 h-3 text-rose-500" />
+                    <span>5. Maternal Baseline Context (XGBoost)</span>
+                  </span>
+                  <span className={`font-mono font-bold ${
+                    maternalBaseline.riskContribution.compositeScore >= 65 ? 'text-rose-700' :
+                    maternalBaseline.riskContribution.compositeScore >= 45 ? 'text-amber-700' : 'text-teal-700'
+                  }`}>
+                    {maternalBaseline.riskContribution.compositeScore}/100
+                  </span>
+                </div>
+                <div className="w-full bg-slate-200/70 h-1.5 rounded-full overflow-hidden mb-1">
+                  <div
+                    className={`h-full rounded-full transition-all ${
+                      maternalBaseline.riskContribution.compositeScore >= 65 ? 'bg-rose-500' :
+                      maternalBaseline.riskContribution.compositeScore >= 45 ? 'bg-amber-500' : 'bg-teal-600'
+                    }`}
+                    style={{ width: `${maternalBaseline.riskContribution.compositeScore}%` }}
+                  />
+                </div>
+                <div className="flex justify-between text-[10px] text-slate-500">
+                  <span>Multiplier: <strong className="font-mono text-slate-800">x{maternalBaseline.riskContribution.contextMultiplier}</strong></span>
+                  <span className="font-medium text-slate-600 truncate max-w-[140px]">
+                    {maternalBaseline.baselineFeatures.phenotypeCluster}
+                  </span>
+                </div>
+              </div>
+
+              {/* Factor 6: Why Flagged Status */}
               <div className={`p-2 rounded-lg border text-xs ${
                 whyNow.severity === 'critical'
                   ? 'bg-rose-50/70 border-rose-200 text-rose-900'
@@ -1200,7 +1260,7 @@ export const PregnancyTwinView: React.FC<PregnancyTwinViewProps> = ({
                   : 'bg-emerald-50/70 border-emerald-200 text-emerald-900'
               }`}>
                 <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider mb-0.5">
-                  <span>5. Why Flagged?</span>
+                  <span>6. Why Flagged?</span>
                   <span className="font-mono">{whyNow.severity.toUpperCase()}</span>
                 </div>
                 <p className="text-[11px] leading-tight font-medium">

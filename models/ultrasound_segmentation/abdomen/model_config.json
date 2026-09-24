@@ -1,0 +1,32 @@
+{
+  "model_name": "Fetal Abdomen Segmentation U-Net",
+  "model_type": "UNet",
+  "framework": "PyTorch / Segmentation Models PyTorch",
+  "encoder_backbone": "resnet34",
+  "encoder_weights": "imagenet",
+  "in_channels": 1,
+  "classes": 1,
+  "activation": "sigmoid",
+  "input_resolution": [256, 256],
+  "downstream_engine": "Geometric Ellipse Measurement Engine (AC)",
+  "loss_function": "CombinedDiceBCELoss (Dice: 0.6, BCE: 0.4)",
+  "optimizer": {
+    "type": "AdamW",
+    "learning_rate": 0.0003,
+    "weight_decay": 0.0001
+  },
+  "scheduler": {
+    "type": "CosineAnnealingLR",
+    "T_max": 50,
+    "eta_min": 1e-6
+  },
+  "batch_size": 16,
+  "epochs": 50,
+  "threshold": 0.5,
+  "anatomical_plane": "Standard Transverse Abdominal Plane (Portal Vein & Gastric Bubble)",
+  "target_structures": [
+    "Fetal abdominal skin line / outer boundary",
+    "Umbilical vein / portal sinus J-shape reference",
+    "Fluid-filled gastric bubble landmark"
+  ]
+}

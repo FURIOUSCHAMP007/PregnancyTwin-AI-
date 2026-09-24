@@ -1,0 +1,4 @@
+# PregnancyTwin AI - Ultrasound Quality Model Weights (PyTorch State Dict Stub)
+# Architecture: EfficientNet-B0 Binary Quality Classifier
+# Exported from Colab Cell 24
+EFFICIENTNET_B0_WEIGHTS_DTYPE=FLOAT32_CHECKPOINT_V1.2

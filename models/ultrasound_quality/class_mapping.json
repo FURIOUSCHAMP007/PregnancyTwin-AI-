@@ -1,0 +1,22 @@
+{
+  "0": "poor",
+  "1": "good",
+  "classes": ["poor", "good"],
+  "decision_states": {
+    "GOOD": {
+      "label": "GOOD",
+      "proceed": true,
+      "description": "Image has adequate visibility, sharpness, contrast, and anatomical field for automated analysis."
+    },
+    "REVIEW": {
+      "label": "REVIEW",
+      "proceed": false,
+      "description": "Borderline quality (0.60–0.85). Clinician review and confirmation advised before proceeding."
+    },
+    "POOR": {
+      "label": "POOR",
+      "proceed": false,
+      "description": "Severe noise, blur, artifact, or acoustic shadowing. Do not proceed to downstream models. Recapture advised."
+    }
+  }
+}

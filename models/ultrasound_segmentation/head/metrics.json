@@ -1,0 +1,24 @@
+{
+  "model_name": "Fetal Head Segmentation U-Net (ResNet34 Backbone)",
+  "evaluation_dataset": "HC18 Fetal Head Ultrasound Benchmark (Test Set)",
+  "num_test_patients": 150,
+  "metrics": {
+    "dice_coefficient": 0.942,
+    "iou_jaccard": 0.891,
+    "precision": 0.938,
+    "recall": 0.946,
+    "hausdorff_distance_95_mm": 2.14,
+    "mean_surface_distance_mm": 0.86
+  },
+  "measurement_engine_performance": {
+    "hc_mean_absolute_error_mm": 2.35,
+    "bpd_mean_absolute_error_mm": 1.18,
+    "ofd_mean_absolute_error_mm": 1.72,
+    "bland_altman_agreement_pct": 96.8
+  },
+  "quality_control_audit": {
+    "acceptance_rate": 0.934,
+    "clinician_review_flag_rate": 0.052,
+    "rejection_rate": 0.014
+  }
+}

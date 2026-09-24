@@ -52,7 +52,7 @@ import {
   ReferenceLine,
   Legend
 } from 'recharts';
-import { Patient, VisitMeasurement, User, GrowthStandard, PregnancyDigitalTwin } from '../types';
+import { Patient, VisitMeasurement, User, GrowthStandard, PregnancyDigitalTwin, RiskNotificationData } from '../types';
 import { validateFeatureValue, validateAllInputFields, DetailedFieldValidation, MASTER_59_FEATURE_CATALOG } from '../utils/featureReference';
 import { calculateVelocities, calculateTrajectoryScore, evaluateWhyNow } from '../utils/trajectoryEngine';
 import { smoothLongitudinalVisits } from '../utils/kalmanFilter';
@@ -71,7 +71,7 @@ interface LiveInputStudioViewProps {
   selectedPatientId: string;
   onSelectPatient: (patientId: string) => void;
   digitalTwinVisits: VisitMeasurement[];
-  onVisitAdded: (patientId: string) => void;
+  onVisitAdded: (patientId: string, riskData?: RiskNotificationData | null) => void;
   onNavigateToTwin: () => void;
   onNavigateToCharts: () => void;
   currentUser: User;
@@ -939,8 +939,25 @@ export const LiveInputStudioView: React.FC<LiveInputStudioViewProps> = ({
         throw new Error(errData.error || 'Failed to record visit');
       }
 
+      const data = await res.json();
+      let highRiskData: RiskNotificationData | null = null;
+      if (data.isHighRisk || data.riskLevel === 'HIGH' || data.trajectoryCategory === 'ACCELERATED_DECLINE') {
+        highRiskData = {
+          patient: data.patient || currentPatient,
+          newVisit: data.visit || payload,
+          previousVisit: data.previousVisit,
+          trajectoryCategory: data.trajectoryCategory || 'ACCELERATED_DECLINE',
+          riskLevel: data.riskLevel || 'HIGH',
+          trajectoryScore: data.trajectoryScore,
+          whyNow: data.whyNow,
+          velocities: data.velocities,
+          detectedAt: new Date().toISOString(),
+          sourceScanName: `Live Ultrasound Studio (${isKalmanActive ? 'Kalman Filtered' : 'Raw Biometrics'})`
+        };
+      }
+
       showToast(`Scan Recorded for ${currentPatient.name}! Digital Twin trajectory re-synthesized.`);
-      onVisitAdded(currentPatient.id);
+      onVisitAdded(currentPatient.id, highRiskData);
 
       // Increment gestational age for next entry
       setGestationalAgeWeeks(prev => Math.min(41, prev + 2));

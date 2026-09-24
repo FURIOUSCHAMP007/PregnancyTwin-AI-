@@ -1,11 +1,62 @@
 {
-  "model_type": "Swin-ViT-v2.1",
-  "segmentation_backbone": "nnU-Net-v2.3",
-  "framework": "PyTorch / ONNX Runtime C++ Engine",
-  "view_classifier_status": "ACTIVE_DEPLOYED",
-  "caliper_tracker_status": "ACTIVE_DEPLOYED",
-  "num_classes": 8,
-  "input_channels": 1,
-  "input_resolution": [512, 512],
-  "weights_version": "v2.1.0-live-production"
+  "model_name": "Model 2 — Ultrasound View / Plane Classifier",
+  "architecture": "Swin Transformer (Swin-T / Swin-B Hierarchical Vision)",
+  "backbone": "swin_tiny_patch4_window7_224",
+  "framework": "PyTorch 2.2 / timm",
+  "status": "ACTIVE_DEPLOYED",
+  "input_resolution": [224, 224],
+  "input_channels": 3,
+  "num_classes": 5,
+  "classes": [
+    "HEAD",
+    "ABDOMEN",
+    "FEMUR",
+    "OTHER",
+    "UNKNOWN"
+  ],
+  "downstream_routing_map": {
+    "HEAD": {
+      "model": "Head U-Net",
+      "target_biometrics": ["HC", "BPD", "OFD"],
+      "action": "AUTOMATIC_SEGMENTATION"
+    },
+    "ABDOMEN": {
+      "model": "Abdomen U-Net",
+      "target_biometrics": ["AC"],
+      "action": "AUTOMATIC_SEGMENTATION"
+    },
+    "FEMUR": {
+      "model": "Femur U-Net",
+      "target_biometrics": ["FL"],
+      "action": "AUTOMATIC_SEGMENTATION"
+    },
+    "OTHER": {
+      "model": "NONE",
+      "target_biometrics": [],
+      "action": "NO_MEASUREMENT_INFORM_USER"
+    },
+    "UNKNOWN": {
+      "model": "MANUAL_REVIEW",
+      "target_biometrics": [],
+      "action": "CLINICIAN_CONFIRMATION_REQUIRED"
+    }
+  },
+  "uncertainty_threshold": 0.65,
+  "training_protocol": {
+    "patient_level_split": {
+      "train": 0.70,
+      "validation": 0.15,
+      "test": 0.15
+    },
+    "stage_1_epochs": 8,
+    "stage_1_learning_rate": 0.001,
+    "stage_1_frozen_backbone": true,
+    "stage_2_epochs": 15,
+    "stage_2_learning_rate": 0.00001,
+    "stage_2_unfrozen_layers": "upper_transformer_stages",
+    "loss_function": "Weighted Cross-Entropy Loss",
+    "class_weights": [1.0, 1.2, 1.4, 2.0, 2.5],
+    "optimizer": "AdamW (weight_decay=0.01)"
+  },
+  "version": "v2.1.0-production"
 }

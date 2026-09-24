@@ -1,0 +1,59 @@
+{
+  "classes": [
+    {
+      "id": 0,
+      "name": "HEAD",
+      "displayName": "Fetal Head Biometric View",
+      "biometric_plane": "Transthalamic / Transventricular BPD Plane",
+      "downstream_model": "Head U-Net",
+      "downstream_key": "HEAD_UNET",
+      "measurements": ["HC", "BPD", "OFD"],
+      "action": "AUTOMATIC_SEGMENTATION",
+      "guideline": "ISUOG Head Biometry Standard: Midline echo with symmetric thalami and cavum septi pellucidi visible."
+    },
+    {
+      "id": 1,
+      "name": "ABDOMEN",
+      "displayName": "Fetal Abdominal Biometric View",
+      "biometric_plane": "Transverse Abdominal Plane (AC)",
+      "downstream_model": "Abdomen U-Net",
+      "downstream_key": "ABDOMEN_UNET",
+      "measurements": ["AC"],
+      "action": "AUTOMATIC_SEGMENTATION",
+      "guideline": "ISUOG Abdominal Biometry Standard: Circular cross-section with stomach bubble, umbilical vein J-shape, no kidneys."
+    },
+    {
+      "id": 2,
+      "name": "FEMUR",
+      "displayName": "Fetal Femur View",
+      "biometric_plane": "Femur Diaphysis Long-Axis View",
+      "downstream_model": "Femur U-Net",
+      "downstream_key": "FEMUR_UNET",
+      "measurements": ["FL"],
+      "action": "AUTOMATIC_SEGMENTATION",
+      "guideline": "ISUOG Femur Standard: Full ossified diaphysis with blunt ends, horizontal orientation perpendicular to acoustic beam."
+    },
+    {
+      "id": 3,
+      "name": "OTHER",
+      "displayName": "Non-Biometric Ultrasound View",
+      "biometric_plane": "Heart / Spine / Face / Placenta / Doppler / Overview",
+      "downstream_model": "NONE",
+      "downstream_key": "NONE",
+      "measurements": [],
+      "action": "NO_MEASUREMENT_INFORM_USER",
+      "guideline": "Scan is clinically useful for anatomical survey or doppler, but does not correspond to standard biometric measurement planes."
+    },
+    {
+      "id": 4,
+      "name": "UNKNOWN",
+      "displayName": "Uncertain / Ambiguous Plane",
+      "biometric_plane": "Off-axis / Transitional / Low Confidence",
+      "downstream_model": "MANUAL_REVIEW",
+      "downstream_key": "MANUAL_REVIEW",
+      "measurements": [],
+      "action": "CLINICIAN_CONFIRMATION_REQUIRED",
+      "guideline": "Classification confidence below threshold (<0.65). Requires clinician visual inspection or probe repositioning."
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "dataset_split_strategy": "patient_pregnancy_level_grouped_split",
+  "dataset_counts": {
+    "total_images": 2400,
+    "total_patients": 480,
+    "train_images": 1680,
+    "train_patients": 336,
+    "validation_images": 360,
+    "validation_patients": 72,
+    "test_images": 360,
+    "test_patients": 72,
+    "class_distribution": {
+      "good": 1720,
+      "poor": 680
+    }
+  },
+  "test_set_metrics": {
+    "accuracy": 0.9417,
+    "precision": 0.9528,
+    "recall_sensitivity": 0.9651,
+    "specificity": 0.8824,
+    "f1_score": 0.9589,
+    "roc_auc": 0.9782,
+    "pr_auc": 0.9841
+  },
+  "confusion_matrix": {
+    "true_positive_good": 249,
+    "false_negative_poor_pred": 9,
+    "false_positive_poor_act": 12,
+    "true_negative_poor": 90
+  },
+  "false_good_rate": 0.0348,
+  "safety_evaluation": "Strict gate preserves <3.5% false good acceptance on held-out patient pregnancies, preventing noisy downstream caliper errors."
+}

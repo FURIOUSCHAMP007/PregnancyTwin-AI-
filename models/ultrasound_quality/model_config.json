@@ -1,0 +1,45 @@
+{
+  "model_name": "EfficientNet-B0 Ultrasound Image Quality Assessment",
+  "model_family": "EfficientNet",
+  "version": "1.2.0",
+  "date_trained": "2026-03-15",
+  "input_size": [224, 224, 3],
+  "framework": "PyTorch 2.2.0+cu121",
+  "backbone": "efficientnet_b0",
+  "pretrained_weights": "ImageNet-1K (transfer learning)",
+  "num_classes": 2,
+  "output_activation": "sigmoid",
+  "task": "binary_classification_with_calibrated_confidence",
+  "thresholds": {
+    "good": 0.85,
+    "review": 0.60,
+    "poor": 0.00
+  },
+  "three_state_decision": {
+    "GOOD": {
+      "min_score": 0.85,
+      "max_score": 1.00,
+      "proceed": true,
+      "action": "Proceed directly to Model 2 — View Classifier (ViT/Swin)"
+    },
+    "REVIEW": {
+      "min_score": 0.60,
+      "max_score": 0.849,
+      "proceed": false,
+      "action": "Requires clinician visual confirmation before downstream analysis"
+    },
+    "POOR": {
+      "min_score": 0.00,
+      "max_score": 0.599,
+      "proceed": false,
+      "action": "Stop. Image quality insufficient for reliable automated analysis. Recapture suggested."
+    }
+  },
+  "hybrid_features": [
+    "efficientnet_b0_deep_features",
+    "laplacian_variance_sharpness",
+    "pixel_intensity_mean_brightness",
+    "std_dev_contrast",
+    "snr_signal_to_noise_ratio"
+  ]
+}

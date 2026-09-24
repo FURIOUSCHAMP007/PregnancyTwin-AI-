@@ -1,0 +1,41 @@
+{
+  "model_id": "pregnancy_trajectory_xgb_v10.3",
+  "task": "Multi-Class Longitudinal Trajectory State Classification & Unsupervised Anomaly Detection",
+  "classes": ["STABLE", "MONITOR", "ATTENTION"],
+  "dataset": "2.5kdata_enhanced.json (Simulated Multimodal Cohort)",
+  "split_method": "Patient-Level Grouped Split (70% Train, 15% Validation, 15% Test)",
+  "metrics": {
+    "validation": {
+      "accuracy": 0.7653,
+      "f1_macro": 0.7588,
+      "f1_weighted": 0.7621
+    },
+    "test": {
+      "accuracy": 0.7627,
+      "f1_macro": 0.7562,
+      "f1_weighted": 0.7604,
+      "per_class_f1": {
+        "STABLE": 0.812,
+        "MONITOR": 0.734,
+        "ATTENTION": 0.723
+      }
+    }
+  },
+  "confusion_matrix": {
+    "labels": ["STABLE", "MONITOR", "ATTENTION"],
+    "matrix": [
+      [142, 21, 5],
+      [19, 118, 23],
+      [4, 18, 92]
+    ]
+  },
+  "hyperparameters": {
+    "n_estimators": 300,
+    "max_depth": 4,
+    "learning_rate": 0.03,
+    "subsample": 0.8,
+    "colsample_bytree": 0.8,
+    "objective": "multi:softprob",
+    "eval_metric": "mlogloss"
+  }
+}

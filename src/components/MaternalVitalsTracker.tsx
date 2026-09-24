@@ -29,6 +29,7 @@ import {
   ChevronDown
 } from 'lucide-react';
 import { PregnancyDigitalTwin, VisitMeasurement } from '../types';
+import { MaternalBaselineModelPanel } from './MaternalBaselineModelPanel';
 
 interface MaternalVitalsLog {
   id: string;
@@ -64,6 +65,7 @@ export const MaternalVitalsTracker: React.FC<MaternalVitalsTrackerProps> = ({ tw
   // Local state for logged weekly vitals
   const [logs, setLogs] = useState<MaternalVitalsLog[]>([]);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'baseline-model' | 'curves' | 'all'>('baseline-model');
 
   // Form input states
   const [logDate, setLogDate] = useState<string>(new Date().toISOString().split('T')[0]);
@@ -347,29 +349,71 @@ export const MaternalVitalsTracker: React.FC<MaternalVitalsTrackerProps> = ({ tw
           </div>
           <div>
             <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
-              Maternal Vital Signs &amp; Fetal Growth Correlation Studio
+              Maternal Physiology &amp; Baseline Studio
             </h3>
             <p className="text-xs text-slate-500 font-medium">
-              Monitor longitudinal blood pressure trends and gestational weight gain curves co-plotted against Hadlock 50th percentile velocities.
+              Structured 11-parameter maternal baseline model (PLAN 1), longitudinal blood pressure dynamics, and gestational weight gain curves.
             </p>
           </div>
         </div>
 
-        {/* Dynamic Risk Flag */}
-        <div className="flex items-center gap-2">
-          {isHighBp ? (
-            <span className="flex items-center space-x-1 px-3 py-1 bg-rose-50 text-rose-700 border border-rose-200 rounded-lg text-xs font-black uppercase tracking-wide animate-pulse">
-              <AlertTriangle className="w-3.5 h-3.5" />
-              <span>Gestational Hypertension Alert</span>
+        {/* View Mode Navigation Buttons */}
+        <div className="flex items-center space-x-1.5 bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-bold">
+          <button
+            onClick={() => setViewMode('baseline-model')}
+            className={`px-3 py-1.5 rounded-lg transition cursor-pointer flex items-center gap-1.5 ${
+              viewMode === 'baseline-model'
+                ? 'bg-teal-700 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Baseline Model</span>
+            <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded font-bold ${
+              viewMode === 'baseline-model' ? 'bg-teal-800 text-teal-200' : 'bg-teal-100 text-teal-800'
+            }`}>
+              PLAN 1
             </span>
-          ) : (
-            <span className="flex items-center space-x-1 px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-lg text-xs font-black uppercase tracking-wide">
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>Normal Maternal Perfusion</span>
-            </span>
-          )}
+          </button>
+
+          <button
+            onClick={() => setViewMode('curves')}
+            className={`px-3 py-1.5 rounded-lg transition cursor-pointer flex items-center gap-1.5 ${
+              viewMode === 'curves'
+                ? 'bg-teal-700 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Activity className="w-3.5 h-3.5" />
+            <span>Longitudinal Curves</span>
+          </button>
+
+          <button
+            onClick={() => setViewMode('all')}
+            className={`px-2.5 py-1.5 rounded-lg transition cursor-pointer ${
+              viewMode === 'all'
+                ? 'bg-teal-700 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            All
+          </button>
         </div>
       </div>
+
+      {/* 1. PLAN 1: Structured Maternal Baseline Model (XGBoost / Random Forest Ensemble) */}
+      {(viewMode === 'baseline-model' || viewMode === 'all') && (
+        <MaternalBaselineModelPanel
+          twin={twin}
+          onBaselineUpdated={() => {
+            if (onRefresh) onRefresh();
+          }}
+        />
+      )}
+
+      {/* 2. Longitudinal Vital Curves, KPIs & Calibration Studio */}
+      {(viewMode === 'curves' || viewMode === 'all') && (
+        <>
 
       {/* Primary KPI Widgets Grid */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -768,6 +812,8 @@ export const MaternalVitalsTracker: React.FC<MaternalVitalsTrackerProps> = ({ tw
         </div>
 
       </div>
+      </>
+      )}
 
     </div>
   );

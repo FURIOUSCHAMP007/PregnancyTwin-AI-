@@ -20,13 +20,15 @@ import { GrowthTrajectoryAnalyticsView } from './components/GrowthTrajectoryAnal
 import { HomePageView } from './components/HomePageView';
 import { MedicationsHub } from './components/MedicationsHub';
 import { PlatformWalkthrough } from './components/PlatformWalkthrough';
+import { RiskNotificationModal } from './components/RiskNotificationModal';
 import {
   Patient,
   PregnancyDigitalTwin,
   User,
   UserRole,
   VisitMeasurement,
-  MeasurementStatus
+  MeasurementStatus,
+  RiskNotificationData
 } from './types';
 import { getOfflineQueue, syncOfflineQueue } from './utils/offlineSync';
 import { AlertTriangle, Sparkles, Loader2, CheckCircle2, Zap, ArrowRight, Sliders, TrendingUp, Home, ChevronRight, Play, X, ChevronLeft, HelpCircle, Shield, Info, Activity, Database, RefreshCw, Download } from 'lucide-react';
@@ -87,6 +89,7 @@ export default function App() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const [clinicalViewMode, setClinicalViewMode] = useState<'split' | 'table'>('split');
   const [twinSubPage, setTwinSubPage] = useState<TwinSubPage>(initialRoute.subPage);
+  const [highRiskNotificationData, setHighRiskNotificationData] = useState<RiskNotificationData | null>(null);
 
   // Synchronize state changes to URL Hash
   useEffect(() => {
@@ -795,9 +798,14 @@ export default function App() {
             selectedPatientId={selectedPatientId}
             onSelectPatient={(id) => setSelectedPatientId(id)}
             digitalTwinVisits={digitalTwin?.visits || []}
-            onVisitAdded={(patientId) => {
+            onVisitAdded={(patientId, highRiskData) => {
               fetchPatients();
               fetchTwin(patientId);
+              if (highRiskData) {
+                setHighRiskNotificationData(highRiskData);
+                setSelectedPatientId(patientId);
+                setActiveTab('clinical');
+              }
             }}
             onNavigateToTwin={() => setActiveTab('clinical')}
             onNavigateToCharts={() => setActiveTab('analytics')}
@@ -876,15 +884,50 @@ export default function App() {
         <UltrasoundUploadModal
           patient={uploadPatient}
           onClose={() => setIsUploadOpen(false)}
-          onExtractionSuccess={() => {
-            showToast('Ultrasound scan successfully extracted and ingested into Digital Twin!');
+          onExtractionSuccess={(highRiskData) => {
             fetchPatients();
             fetchTwin(uploadPatient.id);
+            if (highRiskData) {
+              setHighRiskNotificationData(highRiskData);
+              setSelectedPatientId(uploadPatient.id);
+              setActiveTab('clinical');
+              showToast(`⚠️ HIGH-RISK TRAJECTORY DETECTED: Immediate clinical review advised for ${uploadPatient.name}!`);
+            } else {
+              showToast('Ultrasound scan successfully extracted and ingested into Digital Twin!');
+            }
+          }}
+          onHighRiskDetected={(highRiskData) => {
+            setHighRiskNotificationData(highRiskData);
+            setSelectedPatientId(uploadPatient.id);
+            setActiveTab('clinical');
           }}
           onSendToStudio={(extracted) => {
             setSelectedPatientId(uploadPatient.id);
             setActiveTab('live-input');
             showToast('Ultrasound biometrics loaded into Live Input Studio!');
+          }}
+        />
+      )}
+
+      {/* Primary Model High-Risk Trajectory Notification Modal */}
+      {highRiskNotificationData && (
+        <RiskNotificationModal
+          data={highRiskNotificationData}
+          currentUser={currentUser}
+          showToast={showToast}
+          onClose={() => setHighRiskNotificationData(null)}
+          onProceedToClinicalReview={(patientId) => {
+            setSelectedPatientId(patientId);
+            setActiveTab('clinical');
+            setTwinSubPage('overview');
+            setHighRiskNotificationData(null);
+            showToast(`Initiated immediate clinical review for ${highRiskNotificationData.patient.name}.`);
+          }}
+          onOpenCopilot={(patientName, prompt) => {
+            setSelectedPatientId(highRiskNotificationData.patient.id);
+            setIsCopilotOpen(true);
+            setHighRiskNotificationData(null);
+            showToast('AI Clinical Copilot opened with high-risk clinical review context.');
           }}
         />
       )}

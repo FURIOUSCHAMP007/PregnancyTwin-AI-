@@ -1,0 +1,27 @@
+{
+  "model_name": "Fetal Femur Segmentation U-Net",
+  "version": "femur-unet-v2.1",
+  "architecture": "U-Net",
+  "encoder_backbone": "ResNet34",
+  "pretrained_weights": "ImageNet",
+  "input_channels": 1,
+  "output_classes": 1,
+  "input_shape": [1, 256, 256],
+  "loss_function": "0.6 * DiceLoss + 0.4 * BCEWithLogitsLoss",
+  "optimizer": "AdamW (lr=3e-4, weight_decay=1e-4)",
+  "lr_scheduler": "CosineAnnealingLR (T_max=50, eta_min=1e-6)",
+  "batch_size": 16,
+  "epochs": 50,
+  "split_ratio": {
+    "train": 0.70,
+    "val": 0.15,
+    "test": 0.15
+  },
+  "split_strategy": "Patient-Level Grouping (Pregnancy ID)",
+  "downstream_measurement_engine": {
+    "method": "Principal Component Analysis (PCA) Long-Axis Endpoints Extraction",
+    "target_biometric": "FL (Femur Length in mm)",
+    "calibration_required": true,
+    "default_scale_mm_per_px": 0.385
+  }
+}

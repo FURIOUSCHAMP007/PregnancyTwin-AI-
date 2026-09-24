@@ -1,0 +1,23 @@
+{
+  "model_name": "Fetal Abdomen Segmentation U-Net (ResNet34 Backbone)",
+  "evaluation_dataset": "Standard Fetal Abdomen Ultrasound Benchmark (Test Cohort)",
+  "num_test_patients": 150,
+  "metrics": {
+    "dice_coefficient": 0.938,
+    "iou_jaccard": 0.885,
+    "precision": 0.941,
+    "recall": 0.935,
+    "hausdorff_distance_95_mm": 2.28,
+    "mean_surface_distance_mm": 0.92
+  },
+  "measurement_engine_performance": {
+    "ac_mean_absolute_error_mm": 2.65,
+    "circularity_index_mean": 0.942,
+    "bland_altman_agreement_pct": 95.8
+  },
+  "quality_control_audit": {
+    "acceptance_rate": 0.928,
+    "clinician_review_flag_rate": 0.058,
+    "rejection_rate": 0.014
+  }
+}

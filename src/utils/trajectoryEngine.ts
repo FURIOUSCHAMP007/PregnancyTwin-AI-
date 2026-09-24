@@ -11,7 +11,8 @@ import {
   NextVisitForecast,
   TrajectoryCategory,
   RiskLevel,
-  MedicationExposure
+  MedicationExposure,
+  MaternalRiskContribution
 } from '../types';
 import { smoothLongitudinalVisits } from './kalmanFilter';
 
@@ -144,7 +145,8 @@ export function generateGrowthBaseline() {
 export function calculateTrajectoryScore(
   visits: VisitMeasurement[],
   velocities: TrajectoryVelocity,
-  medications?: MedicationExposure[]
+  medications?: MedicationExposure[],
+  maternalRiskContribution?: MaternalRiskContribution
 ): TrajectoryScore {
   if (visits.length === 0) {
     return {
@@ -250,12 +252,18 @@ export function calculateTrajectoryScore(
   const confidenceScore = Math.round(avgConfidence * 100);
 
   // Overall Weighted Score
-  const overall = Math.round(
+  let overall = Math.round(
     growthScore * 0.35 +
     fluidScore * 0.35 +
     trendScore * 0.20 +
     confidenceScore * 0.10
   );
+
+  // Apply PLAN 1: Maternal baseline contextual calibration (non-diagnostic contextual modifier)
+  if (maternalRiskContribution && maternalRiskContribution.compositeScore > 40) {
+    const contextualAdjustment = Math.round((maternalRiskContribution.compositeScore - 40) * 0.14);
+    overall = Math.max(15, overall - contextualAdjustment);
+  }
 
   return {
     overallScore: Math.min(100, Math.max(10, overall)),

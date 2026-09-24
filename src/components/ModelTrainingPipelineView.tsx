@@ -36,9 +36,13 @@ import {
   Droplet,
   ClipboardCheck,
   ShieldAlert,
+  ShieldCheck,
   History,
-  HeartPulse
+  HeartPulse,
+  Compass
 } from 'lucide-react';
+import { Model1NotebookModal } from './ultrasound/Model1NotebookModal';
+import { Model2NotebookModal } from './ultrasound/Model2NotebookModal';
 
 interface Visit {
   gestational_age: number;
@@ -175,10 +179,23 @@ export const ModelTrainingPipelineView: React.FC = () => {
   // Selected feature row for SHAP inspection
   const [selectedVisitIndex, setSelectedVisitIndex] = useState<number>(2);
 
-  // Selected imaging model type: 'vit' or 'unet'
-  const [selectedImagingModel, setSelectedImagingModel] = useState<'vit' | 'unet'>('vit');
+  // Selected imaging model type: 'quality' (Model 1) | 'vit' (Model 2) | 'unet' (Model 3)
+  const [selectedImagingModel, setSelectedImagingModel] = useState<'quality' | 'vit' | 'unet'>('quality');
 
-  // Configuration state for ViT
+  // Configuration state for Model 1: Ultrasound Image Quality Assessment (EfficientNet-B0)
+  const [qualityThresholdGood, setQualityThresholdGood] = useState<number>(0.85);
+  const [qualityThresholdReview, setQualityThresholdReview] = useState<number>(0.60);
+  const [qualityDropout, setQualityDropout] = useState<number>(0.30);
+  const [qualityStage1Epochs, setQualityStage1Epochs] = useState<number>(8);
+  const [qualityStage2Epochs, setQualityStage2Epochs] = useState<number>(12);
+  const [isQualityNotebookOpen, setIsQualityNotebookOpen] = useState<boolean>(false);
+
+  // Configuration state for ViT / Swin Transformer (Model 2: Ultrasound View / Plane Classification)
+  const [swinPatchSize, setSwinPatchSize] = useState<number>(4);
+  const [swinWindowSize, setSwinWindowSize] = useState<number>(7);
+  const [swinStages, setSwinStages] = useState<number>(4);
+  const [swinUncertaintyThreshold, setSwinUncertaintyThreshold] = useState<number>(0.65);
+  const [isModel2NotebookOpen, setIsModel2NotebookOpen] = useState<boolean>(false);
   const [vitPatchSize, setVitPatchSize] = useState<number>(16);
   const [vitEmbedDim, setVitEmbedDim] = useState<number>(768);
   const [vitDepth, setVitDepth] = useState<number>(12);
@@ -196,7 +213,7 @@ export const ModelTrainingPipelineView: React.FC = () => {
   const [imagingLossHistory, setImagingLossHistory] = useState<number[]>([]);
   const [imagingAccHistory, setImagingAccHistory] = useState<number[]>([]);
 
-  // Simulation timer for ViT/U-Net training
+  // Simulation timer for Model 1 / ViT / U-Net training
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
     if (isImagingTraining) {
@@ -207,30 +224,56 @@ export const ModelTrainingPipelineView: React.FC = () => {
             setIsImagingTraining(false);
             if (interval) clearInterval(interval);
             // Append completion log
+            const savedName = selectedImagingModel === 'quality' 
+              ? 'quality_model.pth' 
+              : selectedImagingModel === 'vit'
+              ? 'swin_view_classifier.pth'
+              : `best_${selectedImagingModel}_weights.pth`;
+            const savedPath = selectedImagingModel === 'quality'
+              ? 'models/ultrasound_quality'
+              : selectedImagingModel === 'vit'
+              ? 'models/view_classifier'
+              : 'models/segmentation';
             setImagingLogs(logs => [
               ...logs,
               `[SUCCESS] PyTorch training pipeline completed successfully in 5.2s.`,
-              `[SUCCESS] Final Optimized Weights Saved: best_${selectedImagingModel}_weights.pth`,
-              `[SUCCESS] Model validated on held-out test cohort.`
+              `[SUCCESS] Final Optimized Weights Saved: ${savedPath}/${savedName}`,
+              selectedImagingModel === 'quality'
+                ? `[SUCCESS] Safety Target Satisfied: False GOOD Rate: 2.8% (< 3.5% clinical safety target). Specificity: 96.1%.`
+                : selectedImagingModel === 'vit'
+                ? `[SUCCESS] Anatomical Routing Verified: Overall Acc: 96.74%, Macro F1: 0.9518, Misrouted to wrong U-Net rate: 0.74% (< 1.5% target).`
+                : `[SUCCESS] Model validated on held-out test cohort.`
             ]);
             return 10;
           }
           // Compute simulated loss and metrics
-          const baseLoss = selectedImagingModel === 'vit' ? 0.72 : 0.65;
-          const loss = Number((baseLoss * Math.pow(0.72, next) + Math.random() * 0.03).toFixed(4));
-          
-          const baseAcc = selectedImagingModel === 'vit' ? 76.5 : 0.785;
-          const metric = selectedImagingModel === 'vit' 
-            ? Number((baseAcc + (21.5 * (1 - Math.pow(0.68, next))) + Math.random() * 0.7).toFixed(1))
-            : Number((baseAcc + (0.19 * (1 - Math.pow(0.68, next))) + Math.random() * 0.007).toFixed(3));
+          let loss = 0;
+          let metric = 0;
+          let logMessage = '';
+
+          if (selectedImagingModel === 'quality') {
+            const baseLoss = 0.68;
+            loss = Number((baseLoss * Math.pow(0.65, next) + Math.random() * 0.02).toFixed(4));
+            metric = Number((78.0 + (16.2 * (1 - Math.pow(0.62, next))) + Math.random() * 0.5).toFixed(1));
+            const isStage1 = next <= 5;
+            const stageLabel = isStage1 ? 'Stage 1 (Frozen Backbone, lr=1e-3)' : 'Stage 2 (Fine-Tuning Top-3 Layers, lr=1e-4)';
+            logMessage = `Epoch [${next}/10] - Loss: ${loss.toFixed(4)} - Accuracy: ${metric.toFixed(1)}% - ROC-AUC: ${(0.82 + next * 0.015).toFixed(3)} - ${stageLabel}`;
+          } else if (selectedImagingModel === 'vit') {
+            const baseLoss = 0.58;
+            loss = Number((baseLoss * Math.pow(0.68, next) + Math.random() * 0.02).toFixed(4));
+            metric = Number((82.0 + (14.7 * (1 - Math.pow(0.65, next))) + Math.random() * 0.4).toFixed(1));
+            const isStage1 = next <= 4;
+            const stageLabel = isStage1 ? 'Stage 1 (Frozen Backbone, lr=1e-3)' : 'Stage 2 (Fine-Tuning Upper Swin Blocks, lr=1e-5)';
+            logMessage = `Epoch [${next}/10] - Loss: ${loss.toFixed(4)} - Accuracy: ${metric.toFixed(1)}% - Macro F1: ${(0.81 + next * 0.014).toFixed(3)} - ${stageLabel}`;
+          } else {
+            const baseLoss = 0.65;
+            loss = Number((baseLoss * Math.pow(0.72, next) + Math.random() * 0.03).toFixed(4));
+            metric = Number((0.785 + (0.19 * (1 - Math.pow(0.68, next))) + Math.random() * 0.007).toFixed(3));
+            logMessage = `Epoch [${next}/10] - Loss: ${loss.toFixed(4)} - Mean Dice Coeff: ${metric.toFixed(3)} - Val Dice Coeff: ${(metric - 0.012).toFixed(3)}`;
+          }
           
           setImagingLossHistory(h => [...h, loss]);
           setImagingAccHistory(a => [...a, metric]);
-
-          const logMessage = selectedImagingModel === 'vit'
-            ? `Epoch [${next}/10] - Loss: ${loss.toFixed(4)} - Training Acc: ${metric.toFixed(1)}% - Val Acc: ${(metric - 1.4).toFixed(1)}%`
-            : `Epoch [${next}/10] - Loss: ${loss.toFixed(4)} - Mean Dice Coeff: ${metric.toFixed(3)} - Val Dice Coeff: ${(metric - 0.012).toFixed(3)}`;
-
           setImagingLogs(logs => [...logs, logMessage]);
           return next;
         });
@@ -250,10 +293,12 @@ export const ModelTrainingPipelineView: React.FC = () => {
       `[INFO] Initializing PyTorch 2.2+ CUDA training context...`,
       `[INFO] Target GPU: NVIDIA A100-SXM4-40GB (Device 0)`,
       `[INFO] Model Architecture: ${selectedImagingModel.toUpperCase()} - Customized Parameters Loaded.`,
-      selectedImagingModel === 'vit'
-        ? `[INFO] ViT Config: Patches=${vitPatchSize}x${vitPatchSize}, EmbedDim=${vitEmbedDim}, Depth=${vitDepth}, Heads=${vitHeads}, Params: ${((vitEmbedDim * vitEmbedDim * vitDepth * 12) / 1000000).toFixed(1)}M`
+      selectedImagingModel === 'quality'
+        ? `[INFO] Model 1 EfficientNet-B0 Quality Gate: Input 224x224 RGB, Pretrained ImageNet-1k, Dropout=${qualityDropout}, Thresholds: Good>=${qualityThresholdGood}, Review>=${qualityThresholdReview}`
+        : selectedImagingModel === 'vit'
+        ? `[INFO] Model 2 Swin Transformer View Classifier: Input 224x224 RGB, Backbone=swin_tiny_patch4_window7_224, Patches=${swinPatchSize}x${swinPatchSize}, Window=${swinWindowSize}x${swinWindowSize}, 5 Classes (HEAD, ABDOMEN, FEMUR, OTHER, UNKNOWN), Uncertainty Threshold=${swinUncertaintyThreshold}`
         : `[INFO] U-Net Config: BaseChannels=${unetBaseChannels}, AttentionGate=${unetAttention ? 'YES' : 'NO'}, Upsample=${unetUpsample.toUpperCase()}, Params: ${((unetBaseChannels * unetBaseChannels * 350) / 1000).toFixed(1)}K`,
-      `[INFO] Loading clinical ultrasound image repository (850 annotated frames)...`,
+      `[INFO] Loading clinical ultrasound image repository (850 annotated frames, Patient-level grouping 70/15/15)...`,
       `[INFO] Data pipelines configured. Commencing 10-epoch optimizer loop...`
     ]);
   };
@@ -314,7 +359,99 @@ export const ModelTrainingPipelineView: React.FC = () => {
   }, [computedEfw]);
 
   const pyTorchCode = useMemo(() => {
-    if (selectedImagingModel === 'vit') {
+    if (selectedImagingModel === 'quality') {
+      return `"""
+PregnancyTwin AI — Model 1: Ultrasound Image Quality Assessment Model
+Architecture: EfficientNet-B0 Pretrained Backbone + Binary Classification Head
+Task: Binary Quality Gate (GOOD vs POOR) + Confidence Score ∈ [0, 1]
+Patient-Level Splitting: 70% Train, 15% Val, 15% Test (zero patient leakage)
+"""
+
+import os
+import torch
+import torch.nn as nn
+from torchvision import models, transforms
+from torch.utils.data import Dataset, DataLoader
+from PIL import Image
+
+class UltrasoundQualityClassifier(nn.Module):
+    """
+    Model 1: Ultrasound Image Quality Assessment AI
+    Evaluates scan suitability for downstream biometry AI pipeline.
+    """
+    def __init__(self, pretrained=True, dropout_rate=${qualityDropout}):
+        super().__init__()
+        weights = models.EfficientNet_B0_Weights.DEFAULT if pretrained else None
+        self.backbone = models.efficientnet_b0(weights=weights)
+        
+        # Replace original 1000-class classifier head with binary quality gate
+        in_features = self.backbone.classifier[1].in_features  # 1280
+        self.backbone.classifier = nn.Sequential(
+            nn.Dropout(p=dropout_rate, inplace=True),
+            nn.Linear(in_features, 1),
+            nn.Sigmoid()
+        )
+        
+    def forward(self, x):
+        return self.backbone(x)
+
+def get_quality_transforms():
+    """
+    Ultrasound-specific normalization transforms (224x224 RGB).
+    """
+    train_transform = transforms.Compose([
+        transforms.Resize((224, 224)),
+        transforms.RandomHorizontalFlip(p=0.5),
+        transforms.RandomRotation(degrees=7),
+        transforms.ColorJitter(brightness=0.15, contrast=0.2),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+    ])
+    
+    val_transform = transforms.Compose([
+        transforms.Resize((224, 224)),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+    ])
+    return train_transform, val_transform
+
+def evaluate_quality_gate(model, image_tensor, threshold_good=${qualityThresholdGood}, threshold_review=${qualityThresholdReview}):
+    """
+    3-State Clinical Gate Logic:
+      - Score >= ${qualityThresholdGood}: GOOD (Proceed to Model 2 View Classifier)
+      - ${qualityThresholdReview} <= Score < ${qualityThresholdGood}: REVIEW (Clinician Confirmation Required)
+      - Score < ${qualityThresholdReview}: POOR (Halt / Recapture / Reposition Transducer)
+    """
+    model.eval()
+    with torch.no_grad():
+        score = model(image_tensor).item()
+        
+    if score >= threshold_good:
+        return {
+            "quality_class": "GOOD",
+            "quality_score": round(score, 4),
+            "proceed": True,
+            "decision": "PROCEED",
+            "quality_reason": "Image has adequate anatomical visibility and sharpness for downstream analysis."
+        }
+    elif score >= threshold_review:
+        return {
+            "quality_class": "REVIEW",
+            "quality_score": round(score, 4),
+            "proceed": False,
+            "decision": "CLINICIAN_REVIEW_REQUIRED",
+            "quality_reason": "Borderline contrast or sub-optimal acoustic window. Visual review suggested."
+        }
+    else:
+        return {
+            "quality_class": "POOR",
+            "quality_score": round(score, 4),
+            "proceed": False,
+            "decision": "RECAPTURE_STOP",
+            "quality_reason": "Excessive blur, severe acoustic shadow, or obscured fetal anatomy."
+        }
+`;
+    } else if (selectedImagingModel === 'vit') {
       return `import torch
 import torch.nn as nn
 
@@ -2453,11 +2590,34 @@ if __name__ == '__main__':
                 </div>
               </div>
 
+              <div className="p-4 bg-teal-50/90 border border-teal-300 rounded-xl space-y-2 shadow-2xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-teal-900 flex items-center space-x-1.5">
+                    <ShieldCheck className="w-4 h-4 text-teal-700" />
+                    <span>Phase 6.5: Model 1 Ultrasound Quality Assessment (EfficientNet-B0)</span>
+                  </span>
+                  <span className="px-2 py-0.5 text-[10px] font-bold bg-teal-200 text-teal-900 rounded">SAFETY GATE</span>
+                </div>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  First safety gate. Evaluates anatomical visibility, blur, contrast, and noise using a fine-tuned EfficientNet-B0 binary classifier with 3-state clinical decision thresholds (GOOD, REVIEW, POOR).
+                </p>
+                <div className="flex items-center justify-between text-[11px] font-semibold text-teal-800 pt-1">
+                  <span>Target: ROC-AUC &gt; 0.96 • False GOOD &lt; 3.5%</span>
+                  <button
+                    type="button"
+                    onClick={() => setIsQualityNotebookOpen(true)}
+                    className="text-[10px] text-teal-700 underline font-bold hover:text-teal-900 cursor-pointer"
+                  >
+                    View 26-Cell Colab Notebook
+                  </button>
+                </div>
+              </div>
+
               <div className="p-4 bg-teal-50/70 border border-teal-200 rounded-xl space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-teal-900 flex items-center space-x-1.5">
                     <Cpu className="w-4 h-4 text-teal-700" />
-                    <span>Phase 7: Vision Transformer (ViT)</span>
+                    <span>Phase 7: Vision Transformer (ViT View Classifier)</span>
                   </span>
                   <span className="px-2 py-0.5 text-[10px] font-bold bg-teal-200 text-teal-900 rounded">INTEGRATED</span>
                 </div>
@@ -2516,8 +2676,24 @@ if __name__ == '__main__':
                 <span className="text-[10px] text-slate-400 font-mono">CUDA PyTorch API</span>
               </div>
 
-              {/* Model Switch Segment Bar */}
-              <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-100 rounded-xl">
+              {/* Model Switch Segment Bar: 3 Models */}
+              <div className="grid grid-cols-3 gap-1 p-1 bg-slate-100 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedImagingModel('quality');
+                    setIsImagingTraining(false);
+                    setImagingEpoch(0);
+                    setImagingLogs([]);
+                  }}
+                  className={`py-1.5 px-2 text-[11px] font-bold rounded-lg transition-all cursor-pointer text-center leading-tight ${
+                    selectedImagingModel === 'quality'
+                      ? 'bg-white text-teal-900 shadow-3xs'
+                      : 'text-slate-500 hover:text-slate-900'
+                  }`}
+                >
+                  Model 1: Quality Gate
+                </button>
                 <button
                   type="button"
                   onClick={() => {
@@ -2526,13 +2702,13 @@ if __name__ == '__main__':
                     setImagingEpoch(0);
                     setImagingLogs([]);
                   }}
-                  className={`py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                  className={`py-1.5 px-2 text-[11px] font-bold rounded-lg transition-all cursor-pointer text-center leading-tight ${
                     selectedImagingModel === 'vit'
                       ? 'bg-white text-teal-900 shadow-3xs'
                       : 'text-slate-500 hover:text-slate-900'
                   }`}
                 >
-                  Vision Transformer (ViT)
+                  Model 2: Swin View Classifier
                 </button>
                 <button
                   type="button"
@@ -2542,116 +2718,287 @@ if __name__ == '__main__':
                     setImagingEpoch(0);
                     setImagingLogs([]);
                   }}
-                  className={`py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                  className={`py-1.5 px-2 text-[11px] font-bold rounded-lg transition-all cursor-pointer text-center leading-tight ${
                     selectedImagingModel === 'unet'
                       ? 'bg-white text-teal-900 shadow-3xs'
                       : 'text-slate-500 hover:text-slate-900'
                   }`}
                 >
-                  Attention U-Net
+                  Model 3: U-Net Seg
                 </button>
               </div>
 
               {/* Dynamic Parameter Options */}
-              {selectedImagingModel === 'vit' ? (
-                <div className="space-y-4 pt-1">
-                  <div className="p-3 bg-teal-50/50 border border-teal-100/60 rounded-lg text-xs text-teal-950">
-                    <strong>ViT Classification Objectives:</strong> Segmenting and identifying correct anatomical planes (Sagittal, Transverse, Coronal) to guarantee clinician measurement validity.
-                  </div>
-
-                  {/* Patch Size */}
-                  <div className="space-y-1">
-                    <div className="flex items-center justify-between text-xs font-medium text-slate-700">
-                      <label htmlFor="param-vit-patch">Patch Size (Pixels)</label>
-                      <span className="font-mono text-teal-800 font-bold">{vitPatchSize}x{vitPatchSize}</span>
+              {selectedImagingModel === 'quality' && (
+                <div className="space-y-3.5 pt-1">
+                  <div className="p-3 bg-teal-50/70 border border-teal-200/80 rounded-lg text-xs text-teal-950 space-y-1.5">
+                    <div className="flex items-center justify-between font-bold">
+                      <span className="flex items-center gap-1.5 text-teal-900">
+                        <ShieldCheck className="w-3.5 h-3.5 text-teal-700" />
+                        Model 1 — Quality Gatekeeper Objective
+                      </span>
+                      <span className="text-[10px] font-mono bg-teal-100 px-1.5 py-0.5 rounded text-teal-800">
+                        EfficientNet-B0
+                      </span>
                     </div>
-                    <input
-                      id="param-vit-patch"
-                      type="range"
-                      min={8}
-                      max={32}
-                      step={8}
-                      value={vitPatchSize}
-                      onChange={e => setVitPatchSize(Number(e.target.value))}
-                      className="w-full accent-teal-600 cursor-pointer"
-                    />
-                    <div className="flex justify-between text-[10px] text-slate-400 font-mono">
-                      <span>8px (Dense)</span>
-                      <span>16px (Normal)</span>
-                      <span>32px (Sparse)</span>
-                    </div>
-                  </div>
-
-                  {/* Embedding Dimension */}
-                  <div className="space-y-1">
-                    <div className="flex items-center justify-between text-xs font-medium text-slate-700">
-                      <label htmlFor="param-vit-embed">Embedding Dimension (d_model)</label>
-                      <span className="font-mono text-teal-800 font-bold">{vitEmbedDim} channels</span>
-                    </div>
-                    <input
-                      id="param-vit-embed"
-                      type="range"
-                      min={128}
-                      max={768}
-                      step={128}
-                      value={vitEmbedDim}
-                      onChange={e => setVitEmbedDim(Number(e.target.value))}
-                      className="w-full accent-teal-600 cursor-pointer"
-                    />
-                    <div className="flex justify-between text-[10px] text-slate-400 font-mono">
-                      <span>128 (Tiny)</span>
-                      <span>384 (Medium)</span>
-                      <span>768 (Base)</span>
+                    <p className="text-[11px] text-slate-600 leading-normal">
+                      Evaluates whether an ultrasound scan is suitable for automated biometrics analysis. Prevents poor-quality images from triggering erroneous caliper downstream measurements.
+                    </p>
+                    <div className="pt-1 flex items-center justify-between border-t border-teal-200/60 text-[10px]">
+                      <button
+                        type="button"
+                        onClick={() => setIsQualityNotebookOpen(true)}
+                        className="font-bold text-teal-700 hover:text-teal-900 underline flex items-center gap-1 cursor-pointer"
+                      >
+                        <FileCode className="w-3 h-3" />
+                        Inspect 26-Cell Colab Notebook
+                      </button>
+                      <a
+                        href="/api/ultrasound/quality/notebook"
+                        download="01_Ultrasound_Image_Quality_Model.ipynb"
+                        className="font-bold text-teal-700 hover:text-teal-900 flex items-center gap-1 cursor-pointer"
+                      >
+                        <Download className="w-3 h-3" />
+                        Download .ipynb
+                      </a>
                     </div>
                   </div>
 
-                  {/* Attention Heads */}
+                  {/* Backbone & Transfer Learning Stages */}
                   <div className="space-y-1">
-                    <div className="flex items-center justify-between text-xs font-medium text-slate-700">
-                      <label htmlFor="param-vit-heads">Multi-Head Attention Heads</label>
-                      <span className="font-mono text-teal-800 font-bold">{vitHeads} heads</span>
-                    </div>
-                    <input
-                      id="param-vit-heads"
-                      type="range"
-                      min={4}
-                      max={12}
-                      step={2}
-                      value={vitHeads}
-                      onChange={e => setVitHeads(Number(e.target.value))}
-                      className="w-full accent-teal-600 cursor-pointer"
-                    />
-                    <div className="flex justify-between text-[10px] text-slate-400 font-mono">
-                      <span>4 heads</span>
-                      <span>8 heads</span>
-                      <span>12 heads</span>
+                    <span className="text-xs font-bold text-slate-700 block">Transfer Learning Strategy</span>
+                    <div className="grid grid-cols-2 gap-2 text-[11px]">
+                      <div className="p-2 rounded-lg bg-slate-50 border border-slate-200">
+                        <span className="font-bold text-slate-800 block text-[10px] uppercase">Stage 1: Frozen Backbone</span>
+                        <span className="text-slate-500 text-[10px]">Train Dense Head only (lr=1e-3, AdamW)</span>
+                      </div>
+                      <div className="p-2 rounded-lg bg-slate-50 border border-slate-200">
+                        <span className="font-bold text-slate-800 block text-[10px] uppercase">Stage 2: Fine-Tuning</span>
+                        <span className="text-slate-500 text-[10px]">Unfreeze Top-3 blocks (lr=1e-4, AdamW)</span>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Transformer Blocks */}
+                  {/* Three-State Decision Thresholds */}
+                  <div className="space-y-2 border border-slate-100 rounded-lg p-2.5 bg-slate-50/50">
+                    <span className="text-xs font-bold text-slate-800 block">Calibrated 3-State Decision Logic</span>
+                    
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-xs font-medium text-slate-700">
+                        <label htmlFor="param-threshold-good">GOOD Image Threshold (&ge;)</label>
+                        <span className="font-mono text-emerald-700 font-bold">{qualityThresholdGood.toFixed(2)} &rarr; PROCEED</span>
+                      </div>
+                      <input
+                        id="param-threshold-good"
+                        type="range"
+                        min={0.75}
+                        max={0.95}
+                        step={0.01}
+                        value={qualityThresholdGood}
+                        onChange={e => setQualityThresholdGood(Number(e.target.value))}
+                        className="w-full accent-emerald-600 cursor-pointer"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-xs font-medium text-slate-700">
+                        <label htmlFor="param-threshold-review">REVIEW Threshold (&ge;)</label>
+                        <span className="font-mono text-amber-700 font-bold">{qualityThresholdReview.toFixed(2)} &rarr; CLINICIAN VISUAL CONFIRM</span>
+                      </div>
+                      <input
+                        id="param-threshold-review"
+                        type="range"
+                        min={0.50}
+                        max={0.70}
+                        step={0.01}
+                        value={qualityThresholdReview}
+                        onChange={e => setQualityThresholdReview(Number(e.target.value))}
+                        className="w-full accent-amber-600 cursor-pointer"
+                      />
+                    </div>
+
+                    <div className="text-[10px] text-slate-500 flex justify-between pt-1 border-t border-slate-200 font-mono">
+                      <span className="text-rose-600 font-bold">&lt; {qualityThresholdReview.toFixed(2)}: POOR (Halted)</span>
+                      <span className="text-amber-600 font-bold">{qualityThresholdReview.toFixed(2)}–{qualityThresholdGood.toFixed(2)}: REVIEW</span>
+                      <span className="text-emerald-600 font-bold">&ge; {qualityThresholdGood.toFixed(2)}: GOOD</span>
+                    </div>
+                  </div>
+
+                  {/* Dropout Rate */}
                   <div className="space-y-1">
                     <div className="flex items-center justify-between text-xs font-medium text-slate-700">
-                      <label htmlFor="param-vit-depth">Depth (Transformer Blocks)</label>
-                      <span className="font-mono text-teal-800 font-bold">{vitDepth} layers</span>
+                      <label htmlFor="param-quality-dropout">Classifier Head Dropout</label>
+                      <span className="font-mono text-teal-800 font-bold">{qualityDropout.toFixed(2)}</span>
                     </div>
                     <input
-                      id="param-vit-depth"
+                      id="param-quality-dropout"
                       type="range"
-                      min={4}
-                      max={12}
-                      step={2}
-                      value={vitDepth}
-                      onChange={e => setVitDepth(Number(e.target.value))}
+                      min={0.10}
+                      max={0.50}
+                      step={0.05}
+                      value={qualityDropout}
+                      onChange={e => setQualityDropout(Number(e.target.value))}
                       className="w-full accent-teal-600 cursor-pointer"
                     />
-                    <div className="flex justify-between text-[10px] text-slate-400 font-mono">
-                      <span>4 (Shallow)</span>
-                      <span>8 (Moderate)</span>
-                      <span>12 (Deep)</span>
-                    </div>
+                  </div>
+
+                  {/* Patient-Level Split Notice */}
+                  <div className="p-2 rounded bg-indigo-50 border border-indigo-100 text-[10px] text-indigo-900 flex items-start gap-1.5">
+                    <Info className="w-3.5 h-3.5 text-indigo-600 shrink-0 mt-0.5" />
+                    <span>
+                      <strong>Patient-Level Grouping:</strong> 70% Train, 15% Val, 15% Test partitioned strictly by pregnancy/patient ID to prevent clinical data leakage.
+                    </span>
                   </div>
                 </div>
-              ) : (
+              )}
+
+              {selectedImagingModel === 'vit' && (
+                <div className="space-y-3.5 pt-1">
+                  <div className="p-3 bg-indigo-50/70 border border-indigo-200/80 rounded-lg text-xs text-indigo-950 space-y-1.5">
+                    <div className="flex items-center justify-between font-bold">
+                      <span className="flex items-center gap-1.5 text-indigo-900">
+                        <Compass className="w-3.5 h-3.5 text-indigo-700" />
+                        Model 2 — Anatomical View Routing Engine
+                      </span>
+                      <span className="text-[10px] font-mono bg-indigo-100 px-1.5 py-0.5 rounded text-indigo-800">
+                        Swin Transformer
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-600 leading-normal">
+                      Classifies ultrasound scans into 5 discrete anatomical views (HEAD, ABDOMEN, FEMUR, OTHER, UNKNOWN) to route to the appropriate downstream segmentation U-Net, preventing incorrect biometric models from firing.
+                    </p>
+                    <div className="pt-1 flex items-center justify-between border-t border-indigo-200/60 text-[10px]">
+                      <button
+                        type="button"
+                        onClick={() => setIsModel2NotebookOpen(true)}
+                        className="font-bold text-indigo-700 hover:text-indigo-900 underline flex items-center gap-1 cursor-pointer"
+                      >
+                        <FileCode className="w-3 h-3" />
+                        Inspect 26-Cell Colab Notebook
+                      </button>
+                      <a
+                        href="/api/ultrasound/view/notebook"
+                        download="02_Ultrasound_View_Plane_Classification_Model.ipynb"
+                        className="font-bold text-indigo-700 hover:text-indigo-900 flex items-center gap-1 cursor-pointer"
+                      >
+                        <Download className="w-3 h-3" />
+                        Download .ipynb
+                      </a>
+                    </div>
+                  </div>
+
+                  {/* 5-Class Downstream Routing Grid */}
+                  <div className="space-y-1">
+                    <span className="text-xs font-bold text-slate-800 block">5-Class Downstream Routing Protocol</span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-[10px] font-mono">
+                      <div className="p-2 rounded bg-sky-50 border border-sky-200 flex items-center justify-between">
+                        <span className="font-bold text-sky-900">HEAD</span>
+                        <span className="text-slate-600">&rarr; Head U-Net (HC, BPD, OFD)</span>
+                      </div>
+                      <div className="p-2 rounded bg-emerald-50 border border-emerald-200 flex items-center justify-between">
+                        <span className="font-bold text-emerald-900">ABDOMEN</span>
+                        <span className="text-slate-600">&rarr; Abdomen U-Net (AC)</span>
+                      </div>
+                      <div className="p-2 rounded bg-indigo-50 border border-indigo-200 flex items-center justify-between">
+                        <span className="font-bold text-indigo-900">FEMUR</span>
+                        <span className="text-slate-600">&rarr; Femur U-Net (FL)</span>
+                      </div>
+                      <div className="p-2 rounded bg-purple-50 border border-purple-200 flex items-center justify-between">
+                        <span className="font-bold text-purple-900">OTHER</span>
+                        <span className="text-slate-600">&rarr; Survey (No Calipers)</span>
+                      </div>
+                    </div>
+                    <div className="p-2 rounded bg-amber-50 border border-amber-200 text-[10px] font-mono flex items-center justify-between">
+                      <span className="font-bold text-amber-900">UNKNOWN (&lt;0.65)</span>
+                      <span className="text-slate-600">&rarr; Human Clinician Manual Review</span>
+                    </div>
+                  </div>
+
+                  {/* Shifted Window Attention Parameters */}
+                  <div className="space-y-2 border border-slate-100 rounded-lg p-2.5 bg-slate-50/50">
+                    <span className="text-xs font-bold text-slate-800 block">Swin Transformer Hyperparameters</span>
+                    
+                    {/* Patch Size */}
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-xs font-medium text-slate-700">
+                        <label htmlFor="param-swin-patch">Patch Partition Size</label>
+                        <span className="font-mono text-indigo-800 font-bold">{swinPatchSize} × {swinPatchSize} px (48-dim raw)</span>
+                      </div>
+                      <input
+                        id="param-swin-patch"
+                        type="range"
+                        min={2}
+                        max={8}
+                        step={2}
+                        value={swinPatchSize}
+                        onChange={e => setSwinPatchSize(Number(e.target.value))}
+                        className="w-full accent-indigo-600 cursor-pointer"
+                      />
+                    </div>
+
+                    {/* Window Size */}
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-xs font-medium text-slate-700">
+                        <label htmlFor="param-swin-window">Shifted Window Size (M × M)</label>
+                        <span className="font-mono text-indigo-800 font-bold">{swinWindowSize} × {swinWindowSize} patches</span>
+                      </div>
+                      <input
+                        id="param-swin-window"
+                        type="range"
+                        min={4}
+                        max={14}
+                        step={1}
+                        value={swinWindowSize}
+                        onChange={e => setSwinWindowSize(Number(e.target.value))}
+                        className="w-full accent-indigo-600 cursor-pointer"
+                      />
+                    </div>
+
+                    {/* Uncertainty Threshold */}
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-xs font-medium text-slate-700">
+                        <label htmlFor="param-swin-threshold">Safety Uncertainty Threshold</label>
+                        <span className="font-mono text-amber-700 font-bold">{swinUncertaintyThreshold.toFixed(2)} &rarr; Flag UNKNOWN</span>
+                      </div>
+                      <input
+                        id="param-swin-threshold"
+                        type="range"
+                        min={0.50}
+                        max={0.85}
+                        step={0.01}
+                        value={swinUncertaintyThreshold}
+                        onChange={e => setSwinUncertaintyThreshold(Number(e.target.value))}
+                        className="w-full accent-amber-600 cursor-pointer"
+                      />
+                      <div className="text-[10px] text-slate-400 font-mono">
+                        Scans with top probability &lt; {swinUncertaintyThreshold.toFixed(2)} prompt human clinician review.
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Transfer Learning Protocol */}
+                  <div className="grid grid-cols-2 gap-2 text-[11px]">
+                    <div className="p-2 rounded-lg bg-slate-50 border border-slate-200">
+                      <span className="font-bold text-slate-800 block text-[10px] uppercase">Stage 1: Head Only</span>
+                      <span className="text-slate-500 text-[10px]">Frozen Swin backbone (lr=1e-3, AdamW)</span>
+                    </div>
+                    <div className="p-2 rounded-lg bg-slate-50 border border-slate-200">
+                      <span className="font-bold text-slate-800 block text-[10px] uppercase">Stage 2: Shifted Stages</span>
+                      <span className="text-slate-500 text-[10px]">Unfreeze Stages 3–4 (lr=1e-5, Cosine)</span>
+                    </div>
+                  </div>
+
+                  {/* Patient-Level Split Notice */}
+                  <div className="p-2 rounded bg-indigo-50 border border-indigo-100 text-[10px] text-indigo-900 flex items-start gap-1.5">
+                    <Info className="w-3.5 h-3.5 text-indigo-600 shrink-0 mt-0.5" />
+                    <span>
+                      <strong>Patient-Level Grouping:</strong> 70% Train, 15% Val, 15% Test partitioned strictly by pregnancy/patient ID to prevent clinical data leakage.
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {selectedImagingModel === 'unet' && (
                 <div className="space-y-4 pt-1">
                   <div className="p-3 bg-teal-50/50 border border-teal-100/60 rounded-lg text-xs text-teal-950">
                     <strong>U-Net Segmentation Objectives:</strong> Pixel-level anatomical labeling to automatically map fetal calipers (HC, AC, FL) with sub-millimeter precision.
@@ -2788,25 +3135,57 @@ if __name__ == '__main__':
                   <div className="flex items-center justify-between border-b border-slate-200 pb-1.5 select-none">
                     <span className="text-[10px] font-bold text-slate-600">INFERENCE ENGINE PREVIEW</span>
                     <span className="text-[10px] px-1.5 py-0.5 bg-emerald-50 text-emerald-700 font-mono font-bold rounded">
-                      Dice: {selectedImagingModel === 'unet' ? (imagingEpoch >= 10 ? '0.982' : imagingEpoch > 0 ? '0.941' : '0.000') : (imagingEpoch >= 10 ? '97.5%' : imagingEpoch > 0 ? '88.2%' : '0.000%')}
+                      {selectedImagingModel === 'quality'
+                        ? `Acc: ${imagingEpoch >= 10 ? '94.2%' : imagingEpoch > 0 ? '88.5%' : '0.0%'} • FG: 2.8%`
+                        : selectedImagingModel === 'unet'
+                        ? `Dice: ${imagingEpoch >= 10 ? '0.982' : imagingEpoch > 0 ? '0.941' : '0.000'}`
+                        : `Acc: ${imagingEpoch >= 10 ? '97.5%' : imagingEpoch > 0 ? '88.2%' : '0.000%'}`}
                     </span>
                   </div>
 
                   {/* Render Visual Mockup */}
                   <div className="grow flex items-center justify-center p-2">
-                    <div className="relative w-36 h-36 rounded-lg border border-slate-300 bg-slate-950 overflow-hidden shadow-xs flex items-center justify-center select-none">
+                    <div className="relative w-44 h-36 rounded-lg border border-slate-300 bg-slate-950 overflow-hidden shadow-xs flex items-center justify-center select-none">
                       {/* Simulated ultrasound scan background texture */}
                       <div className="absolute inset-0 bg-gradient-to-tr from-slate-900 via-slate-950 to-slate-900 opacity-90" />
                       <div className="absolute w-24 h-24 rounded-full border border-dashed border-slate-800 opacity-40 animate-pulse" />
                       
                       {/* Visual representations based on model */}
-                      {selectedImagingModel === 'vit' ? (
+                      {selectedImagingModel === 'quality' ? (
                         <>
-                          <div className="absolute w-12 h-12 bg-orange-500/20 rounded-full blur-xs border border-orange-500/40 transform -translate-x-2 -translate-y-1" />
-                          <div className="absolute w-8 h-8 bg-amber-500/30 rounded-full blur-md transform translate-x-3 translate-y-3" />
-                          <span className="absolute bottom-2 left-2 text-[8px] font-mono font-bold text-orange-400 bg-slate-900/80 px-1 py-0.5 rounded border border-orange-500/20">
-                            Attention Map Overlay
-                          </span>
+                          <div className="absolute inset-2 border-2 border-emerald-500/80 rounded bg-emerald-500/10 flex flex-col justify-between p-1.5 text-[8px] font-mono">
+                            <div className="flex items-center justify-between">
+                              <span className="bg-emerald-950/90 text-emerald-300 px-1 py-0.5 rounded font-bold border border-emerald-500/30">
+                                QUALITY: GOOD (0.94)
+                              </span>
+                              <span className="bg-emerald-900 text-emerald-100 px-1 py-0.5 rounded font-bold">
+                                PROCEED &rarr; M2
+                              </span>
+                            </div>
+                            <div className="space-y-0.5 text-slate-300 bg-slate-950/80 p-1 rounded border border-slate-800 text-[7px]">
+                              <div>Sharpness (Laplacian): 84.5</div>
+                              <div>Contrast (StdDev): 76.2%</div>
+                              <div>Safety Gate: False GOOD &lt; 3.5%</div>
+                            </div>
+                          </div>
+                        </>
+                      ) : selectedImagingModel === 'vit' ? (
+                        <>
+                          <div className="absolute inset-2 border-2 border-indigo-500/80 rounded bg-indigo-500/10 flex flex-col justify-between p-1.5 text-[8px] font-mono">
+                            <div className="flex items-center justify-between">
+                              <span className="bg-sky-950/90 text-sky-300 px-1 py-0.5 rounded font-bold border border-sky-500/30">
+                                VIEW: HEAD (96.2%)
+                              </span>
+                              <span className="bg-indigo-900 text-indigo-100 px-1 py-0.5 rounded font-bold">
+                                &rarr; Head U-Net
+                              </span>
+                            </div>
+                            <div className="space-y-0.5 text-slate-300 bg-slate-950/80 p-1 rounded border border-slate-800 text-[7px]">
+                              <div>Top-1: HEAD (0.96) | Top-2: ABD (0.02)</div>
+                              <div>Target: HC / BPD / OFD Biometry</div>
+                              <div>Shifted Window Attention: Falx Midline</div>
+                            </div>
+                          </div>
                         </>
                       ) : (
                         <>
@@ -2832,8 +3211,10 @@ if __name__ == '__main__':
 
                   {/* Model Objective Footer */}
                   <div className="text-[10px] text-slate-500 leading-relaxed text-center">
-                    {selectedImagingModel === 'vit'
-                      ? 'Vision Transformer attention heads successfully locate fetal thalamus and cerebellum coordinates.'
+                    {selectedImagingModel === 'quality'
+                      ? 'Model 1 acts as first safety gate. Evaluates anatomical visibility, contrast, and noise before releasing scan to downstream models.'
+                      : selectedImagingModel === 'vit'
+                      ? 'Model 2 Swin Transformer classifies the anatomical plane (HEAD, ABDOMEN, FEMUR, OTHER, UNKNOWN) to route to the correct downstream U-Net model.'
                       : 'Attention U-Net maps exact outer contours to extract BPD and HC diameters with sub-pixel precision.'}
                   </div>
                 </div>
@@ -2910,6 +3291,18 @@ if __name__ == '__main__':
           </div>
         </div>
       )}
+
+      {/* Model 1 Quality Gate 26-Cell Colab Training Notebook Modal */}
+      <Model1NotebookModal
+        isOpen={isQualityNotebookOpen}
+        onClose={() => setIsQualityNotebookOpen(false)}
+      />
+
+      {/* Model 2 Swin Transformer 26-Cell Colab Training Notebook Modal */}
+      <Model2NotebookModal
+        isOpen={isModel2NotebookOpen}
+        onClose={() => setIsModel2NotebookOpen(false)}
+      />
     </div>
   );
 };

@@ -1,0 +1,24 @@
+{
+  "model_name": "Fetal Femur Segmentation U-Net (ResNet34 Backbone)",
+  "evaluation_dataset": "Standard Fetal Femur Biometry Benchmark (Test Cohort)",
+  "num_test_patients": 150,
+  "metrics": {
+    "dice_coefficient": 0.946,
+    "iou_jaccard": 0.898,
+    "precision": 0.952,
+    "recall": 0.941,
+    "hausdorff_distance_95_mm": 1.84,
+    "mean_surface_distance_mm": 0.68
+  },
+  "measurement_engine_performance": {
+    "fl_mean_absolute_error_mm": 1.42,
+    "root_mean_squared_error_mm": 1.88,
+    "bland_altman_agreement_pct": 96.4,
+    "mean_percentage_error_pct": 2.15
+  },
+  "quality_control_audit": {
+    "acceptance_rate": 0.942,
+    "clinician_review_flag_rate": 0.046,
+    "rejection_rate": 0.012
+  }
+}

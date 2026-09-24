@@ -1,0 +1,13 @@
+{
+  "explainer_type": "TreeExplainer",
+  "base_value": 0.0,
+  "top_features_display_count": 7,
+  "feature_group_weights": {
+    "fetal_growth": 0.38,
+    "amniotic_fluid": 0.26,
+    "maternal_context": 0.18,
+    "temporal_pacing": 0.08,
+    "clinical_history": 0.06,
+    "data_quality": 0.04
+  }
+}
